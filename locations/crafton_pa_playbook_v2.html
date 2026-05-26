@@ -11,24 +11,26 @@
     --green:#2d7a4f;--green-light:#3da067;--red:#b84040;
     --yellow:#c9862a;--text:#e8e4dc;--text-muted:#9a96a0;
     --border:rgba(201,168,76,0.25);
+    --max-w:1400px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);font-size:14px;line-height:1.5;}
   .header{background:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);border-bottom:2px solid var(--gold);padding:24px 28px 20px;position:relative;overflow:hidden;}
   .header::before{content:'PGH';position:absolute;right:-10px;top:-20px;font-family:'Playfair Display',serif;font-size:120px;font-weight:900;color:rgba(201,168,76,0.05);pointer-events:none;}
-  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;max-width:var(--max-w);margin:0 auto;}
   .header h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:var(--cream);line-height:1.1;}
   .header h1 span{color:var(--gold);}
   .header-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:5px;letter-spacing:0.5px;}
   .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
   .badge{background:var(--gold);color:var(--steel);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:3px 8px;letter-spacing:1px;white-space:nowrap;}
   .badge.alt{background:var(--steel-light);color:var(--text-muted);}
-  .tabs{display:flex;background:var(--steel-mid);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
-  .tabs::-webkit-scrollbar{display:none;}
+  .tabs{background:var(--steel-mid);border-bottom:1px solid var(--border);}
+  .tabs-inner{display:flex;max-width:var(--max-w);margin:0 auto;overflow-x:auto;scrollbar-width:none;}
+  .tabs-inner::-webkit-scrollbar{display:none;}
   .tab{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.8px;padding:11px 15px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;text-transform:uppercase;}
   .tab:hover{color:var(--text);}
   .tab.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,168,76,0.06);}
-  .content{padding:20px 24px;}
+  .content{padding:20px 24px;max-width:var(--max-w);margin:0 auto;}
   .panel{display:none;}
   .panel.active{display:block;}
   .section-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--cream);margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
@@ -135,16 +137,18 @@
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="showTab('market')">📊 Market</div>
-  <div class="tab" onclick="showTab('rents')">🏠 Rents</div>
-  <div class="tab" onclick="showTab('taxes')">🧾 Taxes</div>
-  <div class="tab" onclick="showTab('strategy')">🎯 Strategy</div>
-  <div class="tab" onclick="showTab('pricing')">💲 Price Tiers</div>
-  <div class="tab" onclick="showTab('calculator')">🔢 Calculator</div>
-  <div class="tab" onclick="showTab('pm')">🏢 PM Guide</div>
-  <div class="tab" onclick="showTab('tenants')">👥 Tenants</div>
-  <div class="tab" onclick="showTab('flags')">🚦 Deal Flags</div>
-  <div class="tab" onclick="showTab('checklist')">✅ Diligence</div>
+  <div class="tabs-inner">
+    <div class="tab active" onclick="showTab('market')">📊 Market</div>
+    <div class="tab" onclick="showTab('rents')">🏠 Rents</div>
+    <div class="tab" onclick="showTab('taxes')">🧾 Taxes</div>
+    <div class="tab" onclick="showTab('strategy')">🎯 Strategy</div>
+    <div class="tab" onclick="showTab('pricing')">💲 Price Tiers</div>
+    <div class="tab" onclick="showTab('calculator')">🔢 Calculator</div>
+    <div class="tab" onclick="showTab('pm')">🏢 PM Guide</div>
+    <div class="tab" onclick="showTab('tenants')">👥 Tenants</div>
+    <div class="tab" onclick="showTab('flags')">🚦 Deal Flags</div>
+    <div class="tab" onclick="showTab('checklist')">✅ Diligence</div>
+  </div>
 </div>
 
 <!-- MARKET -->
