@@ -432,6 +432,11 @@
         <div class="hint">Duplex default: $1,750 · Triplex: $2,510 · Quad: $3,280</div>
       </div>
       <div class="input-row">
+        <label>Other Monthly Income ($)</label>
+        <input type="number" id="other_income" value="0" oninput="calc()">
+        <div class="hint">Laundry, parking, storage, pet fees, etc.</div>
+      </div>
+      <div class="input-row">
         <label>Vacancy Rate (%)</label>
         <input type="number" id="vac" value="8" oninput="calc()">
       </div>
@@ -680,6 +685,7 @@ function calc() {
   const dpPct = parseFloat(document.getElementById('dp').value)||20;
   const rate = parseFloat(document.getElementById('rate').value)||7.75;
   const rentGross = parseFloat(document.getElementById('rent').value)||0;
+  const otherIncome = parseFloat(document.getElementById('other_income').value)||0;
   const vacPct = parseFloat(document.getElementById('vac').value)||8;
   const pmPct = parseFloat(document.getElementById('pmfee').value)||9;
   const insRaw = parseFloat(document.getElementById('ins').value)||0;
@@ -699,7 +705,8 @@ function calc() {
   const assessedVal = pp * 0.527;
   const monthlyTax = assessedVal * 0.0435382 / 12;
 
-  const egi = rentGross * (1 - vacPct/100);
+  const grossIncome = rentGross + otherIncome;
+  const egi = grossIncome * (1 - vacPct/100);
   const pmFee = egi * (pmPct/100);
   const totalExp = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee;
   const noi = egi - totalExp;
@@ -726,6 +733,7 @@ function calc() {
     {l:'Loan Amount', v:fmt(loan), c:'', key:false},
     {l:'Monthly P&amp;I', v:fmt(pi)+'/mo', c:'', key:false},
     {l:'Est. Monthly Tax', v:fmt(monthlyTax)+'/mo', c:'', key:false},
+    ...(otherIncome>0 ? [{l:'Other Monthly Income', v:'+'+fmt(otherIncome)+'/mo', c:'good', key:false}] : []),
     {l:'Insurance', v:fmt(insMonthly)+'/mo · '+fmt(insAnnual)+'/yr', c:'', key:false},
     {l:'Repairs &amp; Maint. ('+capexPct+'%/yr)', v:fmt(capexMonthly)+'/mo', c:'', key:false},
     {l:'Other Expenses ('+otherPct+'%/yr)', v:fmt(otherMonthly)+'/mo', c:'', key:false},
