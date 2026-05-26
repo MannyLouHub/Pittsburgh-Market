@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brighton Heights, PA Investment Playbook v2 - Luminous Steel City Holdings</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --steel:#1a1f2e;--steel-mid:#2c3347;--steel-light:#3d4560;
+    --gold:#c9a84c;--gold-light:#e8c87a;--cream:#f5f0e8;
+    --green:#2d7a4f;--green-light:#3da067;--red:#b84040;
+    --yellow:#c9862a;--text:#e8e4dc;--text-muted:#9a96a0;
+    --border:rgba(201,168,76,0.25);--max-w:1400px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);font-size:16px;line-height:1.5;}
+  a{color:var(--gold-light);}
+  .header{background:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);border-bottom:2px solid var(--gold);padding:24px 28px 20px;position:relative;overflow:hidden;}
+  .header::before{content:'PGH';position:absolute;right:-10px;top:-20px;font-family:'Playfair Display',serif;font-size:120px;font-weight:900;color:rgba(201,168,76,0.05);pointer-events:none;}
+  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;max-width:var(--max-w);margin:0 auto;}
+  .header h1{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--cream);line-height:1.1;}
+  .header h1 span{color:var(--gold);}
+  .header-sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);margin-top:5px;letter-spacing:0.5px;}
+  .header-tags{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px;}
+  .header-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;letter-spacing:0.5px;}
+  .header-tag.green{background:rgba(61,160,103,0.2);color:var(--green-light);}
+  .header-tag.gold{background:rgba(201,168,76,0.15);color:var(--gold-light);}
+  .header-tag.dim{background:rgba(61,69,96,0.6);color:var(--text-muted);}
+  .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+  .badge{background:var(--gold);color:var(--steel);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:3px 8px;letter-spacing:1px;white-space:nowrap;}
+  .badge.alt{background:var(--steel-light);color:var(--text-muted);}
+  .tabs{background:var(--steel-mid);border-bottom:1px solid var(--border);}
+  .tabs-inner{display:flex;max-width:var(--max-w);margin:0 auto;overflow-x:auto;scrollbar-width:none;}
+  .tabs-inner::-webkit-scrollbar{display:none;}
+  .tab{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.8px;padding:11px 15px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;text-transform:uppercase;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,168,76,0.06);}
+  .content{padding:20px 24px;max-width:var(--max-w);margin:0 auto;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .section-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--cream);margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .section-title .dot{width:7px;height:7px;background:var(--gold);border-radius:50%;flex-shrink:0;}
+  .section-title.sm{font-size:15px;margin-top:14px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .card{background:var(--steel-mid);border:1px solid var(--border);padding:14px;position:relative;}
+  .card-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
+  .card-value{font-family:'IBM Plex Mono',monospace;font-size:23px;font-weight:600;color:var(--cream);line-height:1.1;}
+  .card-value.gold{color:var(--gold);}
+  .card-value.green{color:var(--green-light);}
+  .card-value.red{color:#e07070;}
+  .card-sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
+  .card-accent{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold);}
+  .card-accent.green{background:var(--green-light);}
+  .data-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:13px;}
+  .data-table th{text-align:left;padding:8px 10px;background:rgba(201,168,76,0.1);color:var(--gold);font-size:11px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+  .data-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text);vertical-align:top;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table td.hl{color:var(--gold-light);font-weight:600;}
+  .data-table td.gr{color:var(--green-light);}
+  .data-table td.rd{color:#e07070;}
+  .data-table td.mu{color:var(--text-muted);}
+  .alert{padding:11px 13px;margin-bottom:13px;font-size:14px;line-height:1.5;border-left:3px solid;background:rgba(0,0,0,0.2);}
+  .alert.green{border-color:var(--green-light);}
+  .alert.yellow{border-color:var(--yellow);}
+  .alert.red{border-color:var(--red);}
+  .alert-title{font-weight:600;margin-bottom:3px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.5px;}
+  .alert.green .alert-title{color:var(--green-light);}
+  .alert.yellow .alert-title{color:#e09a40;}
+  .alert.red .alert-title{color:#e07070;}
+  .flags{display:flex;flex-direction:column;gap:6px;}
+  .flag-row{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:rgba(0,0,0,0.18);}
+  .flag-icon{font-family:'IBM Plex Mono',monospace;font-size:13px;flex-shrink:0;margin-top:1px;color:var(--gold-light);}
+  .flag-text{font-size:14px;line-height:1.5;}
+  .flag-text strong{font-family:'IBM Plex Mono',monospace;font-size:12px;display:block;margin-bottom:2px;letter-spacing:0.3px;}
+  .strategy-card{border:1px solid var(--border);padding:14px;position:relative;overflow:hidden;}
+  .s-stripe{position:absolute;top:0;left:0;right:0;height:3px;}
+  .s-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;}
+  .s-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--cream);margin-bottom:8px;}
+  .s-trigger{font-size:13px;color:var(--text-muted);margin-bottom:6px;}
+  .s-trigger span{color:var(--gold-light);font-weight:500;}
+  .s-metrics{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .s-metrics div{margin-bottom:3px;color:var(--text-muted);}
+  .s-metrics span{color:var(--green-light);}
+  .s-note{font-size:12px;color:#e09a40;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
+  .price-tier{border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;}
+  .tier-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+  .tier-range{font-family:'Playfair Display',serif;font-size:20px;color:var(--cream);margin-bottom:6px;}
+  .tier-verdict{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;letter-spacing:0.5px;margin-bottom:6px;}
+  .tier-body{font-size:13px;color:var(--text-muted);line-height:1.6;}
+  .calc-wrap{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;}
+  .calc-inputs,.calc-results{display:flex;flex-direction:column;gap:8px;}
+  .input-row{display:flex;flex-direction:column;gap:3px;}
+  .input-row label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);}
+  .input-row input,.input-row select{background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:15px;padding:7px 10px;width:100%;outline:none;}
+  .input-row select option{background:var(--steel-mid);}
+  .input-row .hint{font-size:12px;color:var(--text-muted);margin-top:1px;}
+  .input-with-toggle{display:flex;gap:6px;align-items:center;}
+  .input-with-toggle input{flex:1;}
+  .toggle-btn{background:var(--steel-light);border:1px solid var(--border);color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px 10px;cursor:pointer;white-space:nowrap;}
+  .ctc-header{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--gold);margin-bottom:8px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .result-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:rgba(0,0,0,0.22);border-left:2px solid transparent;gap:8px;}
+  .result-row.key{border-left-color:var(--gold);background:rgba(201,168,76,0.06);}
+  .result-label{font-size:13px;color:var(--text-muted);}
+  .result-value{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--cream);text-align:right;}
+  .result-value.good{color:var(--green-light);}
+  .result-value.bad{color:#e07070;}
+  .result-value.warn{color:#e09a40;}
+  .verdict{margin-top:8px;padding:12px;border:1px solid;font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:center;letter-spacing:0.5px;}
+  .pm-note{background:rgba(201,134,42,0.1);border:1px solid rgba(201,134,42,0.3);padding:8px 12px;font-size:13px;color:#e09a40;font-family:'IBM Plex Mono',monospace;margin-bottom:10px;}
+  .mb-14{margin-bottom:14px;}
+  .note{font-size:12px;color:var(--text-muted);font-style:italic;margin-top:7px;}
+  .sources{margin-top:16px;padding:12px 14px;background:rgba(0,0,0,0.18);border:1px solid var(--border);font-size:12px;color:var(--text-muted);}
+  .sources strong{display:block;font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:11px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px;}
+  .sources a{margin-right:12px;white-space:nowrap;}
+  @media(max-width:900px){.grid-4,.grid-3,.grid-2,.calc-wrap{grid-template-columns:1fr;}}
+  @media(max-width:640px){
+    .header{padding:20px 18px;}.content{padding:16px 14px;}.header-top{display:block;}
+    .badges{margin-top:12px;align-items:flex-start;}.header h1{font-size:24px;}
+    .tab{font-size:11px;padding:10px 12px;}.data-table{font-size:11px;display:block;overflow-x:auto;}.card-value{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>BRIGHTON HEIGHTS, PA<br><span>Investment Playbook</span> v2</h1>
+      <div class="header-sub">LUMINOUS STEEL CITY HOLDINGS LLC · SMALL MULTIFAMILY (2-4 UNITS) · 15212 · MAY 2026</div>
+      <div class="header-tags">
+        <span class="header-tag green">$100K-$300K RANGE</span>
+        <span class="header-tag gold">COSMETIC REHAB ONLY</span>
+        <span class="header-tag dim">10% PM MANAGED</span>
+      </div>
+    </div>
+    <div class="badges">
+      <div class="badge">MAY 2026</div>
+      <div class="badge alt">SOURCE-CHECKED</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tabs-inner">
+    <div class="tab active" onclick="showTab(event,'market')">Market</div>
+    <div class="tab" onclick="showTab(event,'rents')">Rents</div>
+    <div class="tab" onclick="showTab(event,'taxes')">Taxes</div>
+    <div class="tab" onclick="showTab(event,'strategy')">Strategy</div>
+    <div class="tab" onclick="showTab(event,'pricing')">Price Tiers</div>
+    <div class="tab" onclick="showTab(event,'calculator')">Calculator</div>
+    <div class="tab" onclick="showTab(event,'pm')">PM Guide</div>
+    <div class="tab" onclick="showTab(event,'tenants')">Tenants</div>
+    <div class="tab" onclick="showTab(event,'flags')">Deal Flags</div>
+    <div class="tab" onclick="showTab(event,'checklist')">Diligence</div>
+  </div>
+</div>
+
+<!-- MARKET -->
+<div class="panel active" id="panel-market">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Brighton Heights - Neighborhood Market Snapshot</div>
+  <div class="grid-4 mb-14">
+    <div class="card"><div class="card-accent"></div><div class="card-label">Median Sale Price</div><div class="card-value gold">$250K</div><div class="card-sub">+9.2% YoY · Redfin, Mar 2026</div></div>
+    <div class="card"><div class="card-accent green"></div><div class="card-label">Renter Concentration</div><div class="card-value green">30%</div><div class="card-sub">29.7% · ACS 2020-2024</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">Median Days on Market</div><div class="card-value gold">87 days</div><div class="card-sub">Redfin · Mar 2026</div></div>
+    <div class="card"><div class="card-accent green"></div><div class="card-label">Rent Growth</div><div class="card-value green">+3.6%</div><div class="card-sub">Realtor.com · current YoY indicator</div></div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Location Fundamentals</div>
+      <table class="data-table">
+        <tr><td class="mu">Neighborhood / City</td><td class="hl">Brighton Heights, Pittsburgh</td></tr>
+        <tr><td class="mu">ZIP</td><td class="hl">15212</td></tr>
+        <tr><td class="mu">Population</td><td>7,023 (ACS 2020-2024)</td></tr>
+        <tr><td class="mu">Renter Occupancy</td><td>29.7% (ACS 2020-2024)</td></tr>
+        <tr><td class="mu">School Taxing Entity</td><td>Pittsburgh Public Schools</td></tr>
+        <tr><td class="mu">2BR Average Rent</td><td class="hl">$1,300 (Zumper, May 2026)</td></tr>
+        <tr><td class="mu">Median Neighborhood Rent</td><td>$1.4K (Realtor.com)</td></tr>
+        <tr><td class="mu">Municipal Taxing Entity</td><td>City of Pittsburgh</td></tr>
+        <tr><td class="mu">Housing Character</td><td>North Side residential neighborhood</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Fit for the Investment Profile</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">OK</div><div class="flag-text"><strong>PRICE BAND OVERLAP</strong>The $250K neighborhood median is within the $100K-$300K screening range, but legal multifamily pricing must be comped separately.</div></div>
+        <div class="flag-row"><div class="flag-icon">OK</div><div class="flag-text"><strong>RENT REFERENCE</strong>Zumper reports a $1,300 2BR average; this playbook screens conservatively at $1,200 per 2BR unit.</div></div>
+        <div class="flag-row"><div class="flag-icon">CHECK</div><div class="flag-text"><strong>MODERATE RENTER SHARE</strong>At 29.7% renter occupancy, leasing history at the specific block and property matters.</div></div>
+        <div class="flag-row"><div class="flag-icon">CHECK</div><div class="flag-text"><strong>CITY TAX STRUCTURE</strong>City, parks, library, school, and county millage are included; verify the parcel's actual assessment and bills.</div></div>
+        <div class="flag-row"><div class="flag-icon">KEEP</div><div class="flag-text"><strong>PERMANENT MANAGEMENT</strong>The calculator retains a 10% professional management fee in every base scenario.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sources">
+    <strong>Sources / As of May 25, 2026</strong>
+    <a href="https://www.redfin.com/neighborhood/156460/PA/Pittsburgh/Brighton-Heights/housing-market" target="_blank" rel="noopener">Redfin housing market</a>
+    <a href="https://www.zumper.com/rent-research/pittsburgh-pa/brighton-heights" target="_blank" rel="noopener">Zumper rent research</a>
+    <a href="https://www.realtor.com/local/market/pennsylvania/pittsburgh/brighton-heights" target="_blank" rel="noopener">Realtor.com market page</a>
+    <a href="https://ucsur.pitt.edu/sites/default/files/Census%20Reports/UCSUR_Profiles_of_Change_20142024_March2026.pdf" target="_blank" rel="noopener">UCSUR ACS profile</a>
+    <a href="https://www.pittsburghpa.gov/files/assets/city/v/1/finance/documents/finance-fee-calculator-2026.html" target="_blank" rel="noopener">Pittsburgh 2026 tax worksheet</a>
+    <a href="https://alleghenycountytreasurer.us/real-estate-tax/local-and-school-district-tax-millage/" target="_blank" rel="noopener">County millage data</a>
+    <a href="https://www.alleghenycounty.us/Services/Property-Assessments-and-Real-Estate/Appeals/Board-of-Property-Assessment-Appeals-and-Review-BPAAR" target="_blank" rel="noopener">BPAAR / CLR</a>
+    <a href="https://hacp.org/programs-services/housing-choice-voucher-program/payment-standards/" target="_blank" rel="noopener">HACP HCV program</a>
+  </div>
+</div>
+</div>
+
+<!-- RENTS -->
+<div class="panel" id="panel-rents">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Brighton Heights Rent Schedule - Conservative Screening Assumptions</div>
+  <table class="data-table mb-14">
+    <thead><tr><th>Unit Type</th><th>Published Rent Reference</th><th>Underwrite At</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="hl">1 BR / 1 BA</td><td>$845</td><td class="gr">$825</td><td class="mu">Zumper average; triplex screening unit</td></tr>
+      <tr><td class="hl">2 BR / 1 BA</td><td>$1,300</td><td class="gr">$1,200</td><td class="mu">Zumper average; duplex and quad basis</td></tr>
+      <tr><td class="hl">3 BR</td><td>Verify comps</td><td class="gr">$1,400</td><td class="mu">Modeled assumption only; do not use without comps</td></tr>
+    </tbody>
+  </table>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">RENT DATA BOUNDARY</div>
+    Zumper bedroom-level averages and Realtor.com's neighborhood median rent come from separate listing datasets. Modeled rents below are conservative screening assumptions for small multifamily units, not documented achievable rents for a subject property.
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Duplex (2 x 2BR) - Base Case EGI</div>
+      <table class="data-table">
+        <tr><td class="mu">Gross Potential Rent</td><td class="hl">$2,400/mo · $28,800/yr</td></tr>
+        <tr><td class="mu">Vacancy (8%)</td><td class="rd">-$192/mo</td></tr>
+        <tr><td class="mu">Effective Gross Income</td><td class="gr">$2,208/mo · $26,496/yr</td></tr>
+        <tr><td class="mu">PM Fee (10% of EGI)</td><td class="rd">-$221/mo · -$2,650/yr</td></tr>
+        <tr><td class="mu">EGI After PM</td><td class="gr">$1,987/mo · $23,846/yr</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Triplex (2 x 2BR + 1 x 1BR) - Base Case EGI</div>
+      <table class="data-table">
+        <tr><td class="mu">Gross Potential Rent</td><td class="hl">$3,225/mo · $38,700/yr</td></tr>
+        <tr><td class="mu">Vacancy (8%)</td><td class="rd">-$258/mo</td></tr>
+        <tr><td class="mu">Effective Gross Income</td><td class="gr">$2,967/mo · $35,604/yr</td></tr>
+        <tr><td class="mu">PM Fee (10% of EGI)</td><td class="rd">-$297/mo · -$3,560/yr</td></tr>
+        <tr><td class="mu">EGI After PM</td><td class="gr">$2,670/mo · $32,044/yr</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAXES -->
+<div class="panel" id="panel-taxes">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>City of Pittsburgh Tax Structure - Brighton Heights Model</div>
+  <div class="grid-4 mb-14">
+    <div class="card"><div class="card-accent"></div><div class="card-label">City Millage</div><div class="card-value gold">9.67</div><div class="card-sub">Pittsburgh · 2026</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">Parks + Library</div><div class="card-value gold">0.75</div><div class="card-sub">0.50 + 0.25 mills · 2026</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">School Millage</div><div class="card-value gold">10.457</div><div class="card-sub">Pittsburgh Public Schools · 2026</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">County Millage</div><div class="card-value gold">6.43</div><div class="card-sub">Allegheny County · 2026</div></div>
+  </div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">APPEAL-ADJUSTED ESTIMATE - VERIFY PARCEL ASSESSMENT</div>
+    The analyzer estimates taxes using purchase price x Allegheny County's 2026 CLR of <strong>50.14%</strong> x combined modeled millage of <strong>27.307</strong> mills. A sale does not automatically reset a parcel assessment to this modeled basis; obtain actual assessment and tax bills before offering.
+  </div>
+  <div class="section-title sm"><div class="dot"></div>Modeled Tax Estimates Across the Acquisition Range</div>
+  <table class="data-table mb-14">
+    <thead><tr><th>Purchase Price</th><th>CLR-Modeled Assessment</th><th>Estimated Annual Tax</th><th>Estimated Monthly Tax</th></tr></thead>
+    <tbody>
+      <tr><td>$100,000</td><td>$50,140</td><td class="gr">$1,369/yr</td><td class="gr">$114/mo</td></tr>
+      <tr><td>$150,000</td><td>$75,210</td><td class="gr">$2,054/yr</td><td class="gr">$171/mo</td></tr>
+      <tr><td>$180,000</td><td>$90,252</td><td class="hl">$2,465/yr</td><td class="hl">$205/mo</td></tr>
+      <tr><td>$200,000</td><td>$100,280</td><td>$2,738/yr</td><td>$228/mo</td></tr>
+      <tr><td>$250,000</td><td>$125,350</td><td>$3,423/yr</td><td>$285/mo</td></tr>
+      <tr><td>$300,000</td><td>$150,420</td><td class="rd">$4,108/yr</td><td class="rd">$342/mo</td></tr>
+    </tbody>
+  </table>
+  <div class="grid-2">
+    <div class="alert green">
+      <div class="alert-title">PRE-OFFER REQUIREMENT</div>
+      Pull the Allegheny County parcel record and the city, school, and county tax bills. Underwrite both actual billed taxes and the CLR-modeled assessment exposure.
+    </div>
+    <table class="data-table">
+      <tr><td class="mu">Transfer Taxes</td><td>Verify in closing estimate</td></tr>
+      <tr><td class="mu">Rental Income Taxation</td><td>Review PA and federal treatment with CPA</td></tr>
+      <tr><td class="mu">City Obligations</td><td>Confirm any rental registration or inspection requirements</td></tr>
+      <tr><td class="mu">Assessment Appeal</td><td>Review parcel-specific exposure before close</td></tr>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- STRATEGY -->
+<div class="panel" id="panel-strategy">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Strategy Framework - Brighton Heights 2-4 Unit Properties</div>
+  <div class="grid-3 mb-14">
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:var(--green-light);"></div>
+      <div class="s-label">Strategy 1 - Primary</div>
+      <div class="s-title">Buy and Hold Duplex</div>
+      <div class="s-trigger">Trigger: <span>Legal duplex near or below $180K</span> with underwritten 2BR rents verified</div>
+      <div class="s-metrics">
+        <div>Default Price: <span>$180,000</span></div>
+        <div>Cash Flow: <span>about $313/mo</span></div>
+        <div>Cap Rate: <span>8.97%</span></div>
+        <div>DSCR: <span>1.30x</span></div>
+        <div>Rehab: <span>Cosmetic only</span></div>
+      </div>
+      <div class="s-note">The default clears PM-adjusted thresholds; actual taxes, utilities, and rent roll remain gating items.</div>
+    </div>
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:var(--gold);"></div>
+      <div class="s-label">Strategy 2 - Selective</div>
+      <div class="s-title">House Hack</div>
+      <div class="s-trigger">Trigger: <span>Owner-occupied financing benefit</span> where long-term rental operation remains viable</div>
+      <div class="s-metrics">
+        <div>Rent Basis: <span>$1,200 per 2BR</span></div>
+        <div>PM Exit: <span>Retain future 10% fee</span></div>
+        <div>Tax Test: <span>27.307 mill screen</span></div>
+        <div>Scope: <span>Cosmetic only</span></div>
+      </div>
+      <div class="s-note">Evaluate the post-occupancy investment scenario, not only reduced initial housing cost.</div>
+    </div>
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:#7a9fd4;"></div>
+      <div class="s-label">Strategy 3 - Opportunistic</div>
+      <div class="s-title">Cosmetic BRRRR</div>
+      <div class="s-trigger">Trigger: <span>Discounted 2-4 unit property</span> with documented condition and value support</div>
+      <div class="s-metrics">
+        <div>Rent Proof: <span>Executed comps</span></div>
+        <div>Value Proof: <span>Multifamily comps</span></div>
+        <div>Rehab: <span>Cosmetic scope only</span></div>
+        <div>Refi Test: <span>PM-adjusted DSCR</span></div>
+      </div>
+      <div class="s-note">Walk from structural or major systems work that changes the stated rehabilitation strategy.</div>
+    </div>
+  </div>
+  <div class="alert yellow">
+    <div class="alert-title">MODEL DISCIPLINE</div>
+    Neighborhood home-sale data does not establish legal multifamily availability or rents. Verify unit count, property condition, leases, taxes, utilities, and PM pricing on every candidate.
+  </div>
+</div>
+</div>
+
+<!-- PRICE TIERS -->
+<div class="panel" id="panel-pricing">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Purchase Price Guide - PM-Adjusted Brighton Heights Screen</div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">MODEL BASIS</div>
+    Scenarios assume 20% down, 7.75% interest, 10% PM of EGI, 8% vacancy, 10% repairs, 3% other expenses, $1,500 annual insurance, 27.307-mill CLR-modeled taxes, and duplex gross rent of $2,400/mo unless stated otherwise.
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:var(--green-light);">TIER 1 - STRONG DUPLEX SCREEN</div>
+    <div class="tier-range">$100,000 - $180,000</div>
+    <div class="tier-verdict" style="background:rgba(45,122,79,0.2);color:var(--green-light);">STRONG OUTPUT IF CONDITION AND LEGAL USE VERIFY</div>
+    <div class="tier-body">At $180K, the modeled duplex produces about $313/mo cash flow, an 8.97% cap rate, 7.88% cash-on-cash return, and 1.30x DSCR. A purchase materially below the neighborhood median warrants close inspection and legal-unit verification.</div>
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:var(--gold);">TIER 2 - VERIFY OR REPRICE</div>
+    <div class="tier-range">$180,000 - $200,000</div>
+    <div class="tier-verdict" style="background:rgba(201,168,76,0.15);color:var(--gold-light);">MARGIN THINS QUICKLY</div>
+    <div class="tier-body">At $185K the model returns about $279/mo and 1.26x DSCR but misses the 7% cash-on-cash hurdle. At $200K it produces about $176/mo and 1.15x DSCR, below the acquisition thresholds.</div>
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:#e09a40;">TIER 3 - SEEK THREE UNITS</div>
+    <div class="tier-range">$200,000 - $260,000</div>
+    <div class="tier-verdict" style="background:rgba(201,134,42,0.15);color:#e09a40;">DUPLEX WEAK; TRIPLEX MAY PENCIL</div>
+    <div class="tier-body">A modeled triplex with $3,225 monthly gross rent reaches about $408/mo, 8.84% cap, 7.39% cash-on-cash return, and 1.28x DSCR at $250K. Require legal three-unit status and verified rents.</div>
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:#e07070;">TIER 4 - HIGH DILIGENCE</div>
+    <div class="tier-range">$260,000 - $300,000</div>
+    <div class="tier-verdict" style="background:rgba(184,64,64,0.15);color:#e07070;">NO STANDARD DUPLEX ACQUISITION</div>
+    <div class="tier-body">The conservative duplex case no longer pencils. A triplex at $300K yields only about $64/mo and 1.04x DSCR; a four-unit candidate requires verified income, legal use, condition, and comparable support before consideration.</div>
+  </div>
+</div>
+</div>
+
+<!-- CALCULATOR -->
+<div class="panel" id="panel-calculator">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Brighton Heights Deal Analyzer - PM-Adjusted</div>
+  <div class="pm-note">Taxes are an appeal-adjusted screen: purchase price x 50.14% CLR x 27.307 mills. Verify actual assessment and tax bills before offering.</div>
+  <div class="calc-wrap">
+    <div class="calc-inputs">
+      <div class="input-row"><label>Property Type</label><select id="ptype" onchange="setRentDefault()"><option value="duplex">Duplex (2 units)</option><option value="triplex">Triplex (3 units)</option><option value="quad">Quad (4 units)</option></select></div>
+      <div class="input-row"><label>Purchase Price ($)</label><input type="number" id="pp" value="180000" oninput="calc()"></div>
+      <div class="input-row"><label>Down Payment (%)</label><input type="number" id="dp" value="20" oninput="calc()"></div>
+      <div class="input-row"><label>Interest Rate (%)</label><input type="number" id="rate" value="7.75" step="0.25" oninput="calc()"></div>
+      <div class="input-row"><label>Monthly Gross Rent ($)</label><input type="number" id="rent" value="2400" oninput="calc()"><div class="hint">Preset: Duplex $2,400 · Triplex $3,225 · Quad $4,800</div></div>
+      <div class="input-row"><label>Other Monthly Income ($)</label><input type="number" id="other_income" value="0" oninput="calc()"></div>
+      <div class="input-row"><label>Vacancy Rate (%)</label><input type="number" id="vac" value="8" oninput="calc()"></div>
+      <div class="input-row"><label>PM Fee (% of EGI)</label><input type="number" id="pmfee" value="10" oninput="calc()"></div>
+      <div class="input-row"><label>Insurance</label><div class="input-with-toggle"><input type="number" id="ins" value="1500" oninput="calc()"><button class="toggle-btn" id="ins-toggle" onclick="toggleIns()">/yr</button></div></div>
+      <div class="input-row"><label>Repairs and Maintenance (% gross rent/yr)</label><input type="number" id="capex" value="10" step="0.5" oninput="calc()"></div>
+      <div class="input-row"><label>Other Expenses (% gross rent/yr)</label><input type="number" id="other" value="3" step="0.5" oninput="calc()"></div>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">
+        <div class="ctc-header">Cash to Close</div>
+        <div class="input-row"><label>Closing Costs (% of purchase)</label><input type="number" id="closing_cost" value="6.5" step="0.5" oninput="calc()"></div>
+        <div class="input-row"><label>Rehab Budget ($)</label><input type="number" id="rehab" value="0" oninput="calc()"><div class="hint">Cosmetic-only model; set after inspection and bid.</div></div>
+      </div>
+    </div>
+    <div><div class="calc-results" id="results"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- PM GUIDE -->
+<div class="panel" id="panel-pm">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Property Management - Brighton Heights / Pittsburgh Guide</div>
+  <div class="grid-2 mb-14">
+    <table class="data-table">
+      <tr><td class="mu">Management Fee Model</td><td class="hl">10% of collected effective income</td></tr>
+      <tr><td class="mu">Vacancy Model</td><td>8% of potential gross income</td></tr>
+      <tr><td class="mu">Repairs Reserve</td><td>10% of gross rent</td></tr>
+      <tr><td class="mu">Other Operating Expense</td><td>3% of gross rent</td></tr>
+      <tr><td class="mu">Lease Placement</td><td>Obtain proposal before offer</td></tr>
+      <tr><td class="mu">City Compliance</td><td>Confirm applicable Pittsburgh requirements</td></tr>
+    </table>
+    <div class="flags">
+      <div class="flag-row"><div class="flag-icon">?</div><div class="flag-text">How many legal 2-4 unit properties do you manage in Brighton Heights or adjacent North Side neighborhoods?</div></div>
+      <div class="flag-row"><div class="flag-icon">?</div><div class="flag-text">Which executed leases support a $1,200 underwritten 2BR rent?</div></div>
+      <div class="flag-row"><div class="flag-icon">?</div><div class="flag-text">What are placement, renewal, inspection, maintenance, and termination fees?</div></div>
+      <div class="flag-row"><div class="flag-icon">?</div><div class="flag-text">Do you process HACP voucher inspections and required documentation?</div></div>
+    </div>
+  </div>
+  <div class="grid-2 mb-14">
+    <div class="alert yellow">
+      <div class="alert-title">MODEL PM AS PERMANENT</div>
+      All displayed scenarios include professional management. Replace the 10% screening assumption with a written proposal before final underwriting.
+    </div>
+    <div class="alert green">
+      <div class="alert-title">HCV JURISDICTION</div>
+      Brighton Heights is within the City of Pittsburgh. Verify current Housing Choice Voucher payment standards, utility allowances, and inspection rules directly with the Housing Authority of the City of Pittsburgh (HACP).
+    </div>
+  </div>
+  <div class="section-title sm"><div class="dot"></div>Annual PM Fee Impact - Screening Model</div>
+  <table class="data-table">
+    <thead><tr><th>Property Type</th><th>Monthly GPR</th><th>EGI After 8% Vacancy</th><th>PM @ 10% of EGI</th><th>Annual PM Fee</th></tr></thead>
+    <tbody>
+      <tr><td>Duplex (2BR / 2BR)</td><td>$2,400</td><td>$2,208</td><td class="rd">$221/mo</td><td class="rd">$2,650/yr</td></tr>
+      <tr><td>Triplex (2BR / 2BR / 1BR)</td><td>$3,225</td><td>$2,967</td><td class="rd">$297/mo</td><td class="rd">$3,560/yr</td></tr>
+      <tr><td>Quadplex (4 x 2BR)</td><td>$4,800</td><td>$4,416</td><td class="rd">$442/mo</td><td class="rd">$5,299/yr</td></tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<!-- TENANTS -->
+<div class="panel" id="panel-tenants">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Tenant Demand and Leasing Controls - Brighton Heights</div>
+  <div class="grid-2">
+    <table class="data-table">
+      <tr><td class="mu">Population</td><td class="hl">7,023 (ACS 2020-2024)</td></tr>
+      <tr><td class="mu">Renter-Occupied Share</td><td class="hl">29.7% (ACS 2020-2024)</td></tr>
+      <tr><td class="mu">1BR Published Average</td><td>$845 (Zumper, May 2026)</td></tr>
+      <tr><td class="mu">2BR Published Average</td><td>$1,300 (Zumper, May 2026)</td></tr>
+      <tr><td class="mu">2BR Underwriting Rent</td><td class="gr">$1,200</td></tr>
+      <tr><td class="mu">Income at 3x Modeled 2BR Rent</td><td>$43,200/yr household income</td></tr>
+      <tr><td class="mu">Voucher Program Verification</td><td>HACP current standards required</td></tr>
+    </table>
+    <table class="data-table">
+      <thead><tr><th>Leasing Control</th><th>Required Evidence</th></tr></thead>
+      <tbody>
+        <tr><td class="mu">Rent Target</td><td>Recent comparable executed leases</td></tr>
+        <tr><td class="mu">Income Qualification</td><td>Written, consistently applied policy</td></tr>
+        <tr><td class="mu">Rental History</td><td>Verified references and payment history</td></tr>
+        <tr><td class="mu">Fair Housing Compliance</td><td>PM screening and accommodation process</td></tr>
+        <tr><td class="mu">Voucher Applicant</td><td>HACP process and unit inspection readiness</td></tr>
+        <tr><td class="mu">Utilities</td><td>Lease allocation and meter verification</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- FLAGS -->
+<div class="panel" id="panel-flags">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Deal Flags - Brighton Heights Small Multifamily</div>
+  <div class="grid-3">
+    <div>
+      <div class="tier-verdict" style="background:rgba(45,122,79,0.2);color:var(--green-light);">GREEN - PROCEED TO FULL REVIEW</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">+</div><div class="flag-text">Legal duplex near or below $180K meeting PM-adjusted targets</div></div>
+        <div class="flag-row"><div class="flag-icon">+</div><div class="flag-text">Verified tax bills at or below conservative screening model</div></div>
+        <div class="flag-row"><div class="flag-icon">+</div><div class="flag-text">Separate utilities and documented resident responsibility</div></div>
+        <div class="flag-row"><div class="flag-icon">+</div><div class="flag-text">Inspection confirms cosmetic-only improvement scope</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="tier-verdict" style="background:rgba(201,134,42,0.15);color:#e09a40;">YELLOW - VERIFY OR REPRICE</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">!</div><div class="flag-text">Duplex over $180K without higher executed rents or lower verified costs</div></div>
+        <div class="flag-row"><div class="flag-icon">!</div><div class="flag-text">Tax reliance on current bills only, without assessment appeal stress test</div></div>
+        <div class="flag-row"><div class="flag-icon">!</div><div class="flag-text">Owner-paid utilities or below-market existing leases</div></div>
+        <div class="flag-row"><div class="flag-icon">!</div><div class="flag-text">Multifamily designation or zoning not documented</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="tier-verdict" style="background:rgba(184,64,64,0.15);color:#e07070;">RED - DO NOT PROCEED</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">X</div><div class="flag-text">Unpermitted unit conversion or occupancy conflict</div></div>
+        <div class="flag-row"><div class="flag-icon">X</div><div class="flag-text">Structural, sewer, roof, HVAC, or electrical work beyond cosmetic scope</div></div>
+        <div class="flag-row"><div class="flag-icon">X</div><div class="flag-text">Negative cash flow after PM with verified assumptions</div></div>
+        <div class="flag-row"><div class="flag-icon">X</div><div class="flag-text">Unresolved liens, code issues, or material operating omissions</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="panel" id="panel-checklist">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Due Diligence Checklist - Brighton Heights Multifamily</div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Pre-Offer</div>
+      <div id="pre-offer"></div>
+      <div class="section-title sm"><div class="dot"></div>Physical Inspection</div>
+      <div id="physical"></div>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Financial and Legal</div>
+      <div id="financial"></div>
+      <div class="section-title sm"><div class="dot"></div>Closing and Post-Close</div>
+      <div id="closing"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function showTab(evt, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  evt.currentTarget.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+let insMode = 'yr';
+
+function setRentDefault() {
+  const rents = {duplex:2400, triplex:3225, quad:4800};
+  document.getElementById('rent').value = rents[document.getElementById('ptype').value];
+  calc();
+}
+
+function toggleIns() {
+  const btn = document.getElementById('ins-toggle');
+  const inp = document.getElementById('ins');
+  const curVal = parseFloat(inp.value) || 0;
+  if (insMode === 'yr') {
+    insMode = 'mo';
+    inp.value = Math.round(curVal / 12);
+    btn.textContent = '/mo';
+  } else {
+    insMode = 'yr';
+    inp.value = Math.round(curVal * 12);
+    btn.textContent = '/yr';
+  }
+  calc();
+}
+
+function calc() {
+  const ptype = document.getElementById('ptype').value;
+  const pp = parseFloat(document.getElementById('pp').value) || 0;
+  const dpPct = parseFloat(document.getElementById('dp').value) || 20;
+  const rate = parseFloat(document.getElementById('rate').value) || 7.75;
+  const rentGross = parseFloat(document.getElementById('rent').value) || 0;
+  const otherIncome = parseFloat(document.getElementById('other_income').value) || 0;
+  const vacPct = parseFloat(document.getElementById('vac').value) || 8;
+  const pmPct = parseFloat(document.getElementById('pmfee').value) || 10;
+  const insRaw = parseFloat(document.getElementById('ins').value) || 0;
+  const insMonthly = insMode === 'yr' ? insRaw / 12 : insRaw;
+  const capexPct = parseFloat(document.getElementById('capex').value) || 0;
+  const capexMonthly = rentGross * capexPct / 100;
+  const otherPct = parseFloat(document.getElementById('other').value) || 0;
+  const otherMonthly = rentGross * otherPct / 100;
+  const closingCostPct = parseFloat(document.getElementById('closing_cost').value) || 6.5;
+  const rehab = parseFloat(document.getElementById('rehab').value) || 0;
+
+  const dp = pp * dpPct / 100;
+  const loan = pp - dp;
+  const mr = rate / 100 / 12;
+  const pi = mr > 0 ? loan * (mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1) : loan / 360;
+  const assessedVal = pp * 0.5014;
+  const monthlyTax = assessedVal * 0.027307 / 12;
+  const grossIncome = rentGross + otherIncome;
+  const egi = grossIncome * (1 - vacPct / 100);
+  const pmFee = egi * pmPct / 100;
+  const totalExp = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee;
+  const noi = egi - totalExp;
+  const capRate = pp > 0 ? noi * 12 / pp * 100 : 0;
+  const cf = noi - pi;
+
+  const closingCostAmt = pp * closingCostPct / 100;
+  const cashToClose = dp + closingCostAmt + rehab;
+  const coc = cashToClose > 0 ? cf * 12 / cashToClose * 100 : 0;
+  const dscr = pi > 0 ? noi / pi : 0;
+  const grm = rentGross > 0 ? pp / (rentGross * 12) : 0;
+  const units = ptype === 'duplex' ? 2 : ptype === 'triplex' ? 3 : 4;
+  const pricePerUnit = units ? pp / units : 0;
+
+  function fmt(n) { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); }
+  function fmtPct(n) { return n.toFixed(2) + '%'; }
+  function cls(v, good, warn) { return v >= good ? 'good' : v >= warn ? 'warn' : 'bad'; }
+
+  const insAnnual = insMode === 'yr' ? insRaw : insRaw * 12;
+  const rows = [
+    {l:'Purchase Price', v:fmt(pp), c:'', key:false},
+    {l:'Down Payment (' + dpPct + '%)', v:fmt(dp), c:'', key:false},
+    {l:'Loan Amount', v:fmt(loan), c:'', key:false},
+    {l:'Monthly P&I', v:fmt(pi) + '/mo', c:'', key:false},
+    {l:'Tax Estimate (CLR-modeled)', v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'', key:false},
+    ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo', c:'good', key:false}] : []),
+    {l:'Insurance', v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr', c:'', key:false},
+    {l:'Repairs and Maint. (' + capexPct + '%)', v:fmt(capexMonthly) + '/mo', c:'', key:false},
+    {l:'Other Expenses (' + otherPct + '%)', v:fmt(otherMonthly) + '/mo', c:'', key:false},
+    {l:'PM Fee (' + pmPct + '% of EGI)', v:fmt(pmFee) + '/mo', c:'bad', key:false},
+    {l:'Total Monthly Expenses', v:fmt(totalExp) + '/mo', c:'', key:false},
+    {l:'NOI (before debt service)', v:(noi < 0 ? '-' : '') + fmt(noi) + '/mo', c:cls(noi, 0, -1), key:false},
+    {l:'Monthly Cash Flow', v:(cf < 0 ? '-' : '') + fmt(cf) + '/mo', c:cls(cf, 150 * units, 0), key:true},
+    {l:'Annual Cash Flow', v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr', c:cls(cf * 12, 1800 * units, 0), key:false},
+    {l:'Cap Rate (PM-adjusted)', v:fmtPct(capRate), c:cls(capRate, 8, 6.5), key:true},
+    {l:'Cash-on-Cash Return', v:fmtPct(coc), c:cls(coc, 7, 4), key:true},
+    {l:'DSCR', v:dscr.toFixed(2) + 'x', c:cls(dscr, 1.2, 1.0), key:true},
+    {l:'Price Per Unit', v:fmt(pricePerUnit), c:'', key:false},
+    {l:'Gross Rent Multiplier', v:grm.toFixed(1) + 'x (target <=10)', c:grm <= 10 ? 'good' : grm <= 12 ? 'warn' : 'bad', key:false}
+  ];
+
+  let html = rows.map(r => `<div class="result-row${r.key ? ' key' : ''}"><span class="result-label">${r.l}</span><span class="result-value ${r.c}">${r.v}</span></div>`).join('');
+  let verdict = '', color = '';
+  if (capRate >= 8 && coc >= 7 && dscr >= 1.2 && cf >= 150 * units) {
+    verdict = 'STRONG DEAL - Meets PM-adjusted Brighton Heights benchmarks';
+    color = 'var(--green-light)';
+  } else if (capRate >= 6.5 && dscr >= 1.0 && cf > 0) {
+    verdict = 'MARGINAL - Verify rent and tax upside before proceeding';
+    color = '#e09a40';
+  } else if (cf >= -200 && capRate >= 5.5) {
+    verdict = 'WEAK - Requires a different strategy or documented income upside';
+    color = '#e09a40';
+  } else {
+    verdict = 'PASS - Does not pencil with PM at these inputs';
+    color = '#e07070';
+  }
+  html += `<div class="verdict" style="border-color:${color};color:${color};">${verdict}</div>`;
+  html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+    <div class="ctc-header">Cash to Close</div>
+    <div class="result-row"><span class="result-label">Down Payment (${dpPct}%)</span><span class="result-value">${fmt(dp)}</span></div>
+    <div class="result-row"><span class="result-label">Closing Costs (${closingCostPct}%)</span><span class="result-value">${fmt(closingCostAmt)}</span></div>
+    ${rehab > 0 ? `<div class="result-row"><span class="result-label">Rehab Budget</span><span class="result-value">${fmt(rehab)}</span></div>` : ''}
+    <div class="result-row key"><span class="result-label">Total Cash to Close</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
+    <div class="note">CoC return uses down payment + closing costs + rehabilitation budget.</div>
+  </div>`;
+  document.getElementById('results').innerHTML = html;
+}
+
+function buildChecklist(id, items) {
+  document.getElementById(id).innerHTML = items.map(item => `
+    <div class="flag-row" style="margin-bottom:4px;cursor:pointer;" onclick="toggleCheck(this)">
+      <div class="flag-icon">[ ]</div>
+      <div class="flag-text" style="font-size:13px;">${item}</div>
+    </div>`).join('');
+}
+
+function toggleCheck(el) {
+  const icon = el.querySelector('.flag-icon');
+  icon.textContent = icon.textContent === '[ ]' ? '[x]' : '[ ]';
+}
+
+buildChecklist('pre-offer', [
+  'Pull Allegheny County parcel record, assessed value, and current tax bills',
+  'Model actual bills and the 50.14% CLR x 27.307-mill screening case',
+  'Confirm City of Pittsburgh legal unit count, zoning, permits, and code status',
+  'Pull Brighton Heights and nearby North Side multifamily sales and rent comps',
+  'Obtain PM proposal and run PM-adjusted analyzer with utility allocation'
+]);
+
+buildChecklist('physical', [
+  'Order licensed PA inspection suitable for a multifamily property',
+  'Review roof, foundation, basement moisture, drainage, and sewer condition',
+  'Verify electrical, HVAC, water heaters, and utility meter separation',
+  'Obtain contractor pricing that confirms cosmetic-only rehabilitation scope'
+]);
+
+buildChecklist('financial', [
+  'Request leases, deposits, rent roll, delinquency, and turnover history',
+  'Review landlord-paid utilities and 12 months of operating documentation',
+  'Obtain insurance quote and confirm PM full fee schedule',
+  'If vouchers are relevant, obtain current HACP standards and inspection rules',
+  'Recalculate cap rate, cash-on-cash, and DSCR from verified inputs'
+]);
+
+buildChecklist('closing', [
+  'Resolve liens, open permits, code matters, and occupancy discrepancies',
+  'Transfer leases and deposits and execute management agreement',
+  'Confirm utility transitions and fund repairs reserve',
+  'Review post-closing assessment appeal exposure and applicable deadlines'
+]);
+
+calc();
+</script>
+</body>
+</html>
