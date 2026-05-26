@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --steel:#1a1f2e;--steel-mid:#2c3347;--steel-light:#3d4560;
+    --gold:#c9a84c;--gold-light:#e8c87a;--cream:#f5f0e8;
+    --green:#2d7a4f;--green-light:#3da067;--red:#b84040;
+    --yellow:#c9862a;--text:#e8e4dc;--text-muted:#9a96a0;
+    --border:rgba(201,168,76,0.25);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);font-size:14px;line-height:1.5;}
+  .header{background:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);border-bottom:2px solid var(--gold);padding:24px 28px 20px;position:relative;overflow:hidden;}
+  .header::before{content:'PGH';position:absolute;right:-10px;top:-20px;font-family:'Playfair Display',serif;font-size:120px;font-weight:900;color:rgba(201,168,76,0.05);pointer-events:none;}
+  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+  .header h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:var(--cream);line-height:1.1;}
+  .header h1 span{color:var(--gold);}
+  .header-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:5px;letter-spacing:0.5px;}
+  .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+  .badge{background:var(--gold);color:var(--steel);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:3px 8px;letter-spacing:1px;white-space:nowrap;}
+  .badge.alt{background:var(--steel-light);color:var(--text-muted);}
+  .tabs{display:flex;background:var(--steel-mid);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.8px;padding:11px 15px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;text-transform:uppercase;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,168,76,0.06);}
+  .content{padding:20px 24px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .section-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--cream);margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .section-title .dot{width:7px;height:7px;background:var(--gold);border-radius:50%;flex-shrink:0;}
+  .section-title.sm{font-size:13px;margin-top:14px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .card{background:var(--steel-mid);border:1px solid var(--border);padding:14px;position:relative;}
+  .card-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
+  .card-value{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:var(--cream);line-height:1.1;}
+  .card-value.gold{color:var(--gold);}
+  .card-value.green{color:var(--green-light);}
+  .card-value.red{color:#e07070;}
+  .card-sub{font-size:10px;color:var(--text-muted);margin-top:3px;}
+  .card-accent{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold);}
+  .card-accent.green{background:var(--green-light);}
+  .card-accent.red{background:var(--red);}
+  .data-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  .data-table th{text-align:left;padding:8px 10px;background:rgba(201,168,76,0.1);color:var(--gold);font-size:9px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+  .data-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text);vertical-align:top;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .data-table td.hl{color:var(--gold-light);font-weight:600;}
+  .data-table td.gr{color:var(--green-light);}
+  .data-table td.rd{color:#e07070;}
+  .data-table td.mu{color:var(--text-muted);}
+  .alert{padding:11px 13px;margin-bottom:13px;font-size:12px;line-height:1.5;border-left:3px solid;background:rgba(0,0,0,0.2);}
+  .alert.green{border-color:var(--green-light);}
+  .alert.yellow{border-color:var(--yellow);}
+  .alert.red{border-color:var(--red);}
+  .alert-title{font-weight:600;margin-bottom:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.5px;}
+  .alert.green .alert-title{color:var(--green-light);}
+  .alert.yellow .alert-title{color:#e09a40;}
+  .alert.red .alert-title{color:#e07070;}
+  .flags{display:flex;flex-direction:column;gap:6px;}
+  .flag-row{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:rgba(0,0,0,0.18);}
+  .flag-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+  .flag-text{font-size:12px;line-height:1.5;}
+  .flag-text strong{font-family:'IBM Plex Mono',monospace;font-size:10px;display:block;margin-bottom:2px;letter-spacing:0.3px;}
+  .strategy-card{border:1px solid var(--border);padding:14px;position:relative;overflow:hidden;}
+  .s-stripe{position:absolute;top:0;left:0;right:0;height:3px;}
+  .s-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;}
+  .s-title{font-family:'Playfair Display',serif;font-size:14px;color:var(--cream);margin-bottom:8px;}
+  .s-trigger{font-size:11px;color:var(--text-muted);margin-bottom:6px;}
+  .s-trigger span{color:var(--gold-light);font-weight:500;}
+  .s-metrics{font-family:'IBM Plex Mono',monospace;font-size:10px;}
+  .s-metrics div{margin-bottom:3px;color:var(--text-muted);}
+  .s-metrics span{color:var(--green-light);}
+  .s-note{font-size:10px;color:#e09a40;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
+  .calc-wrap{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;}
+  .calc-inputs{display:flex;flex-direction:column;gap:8px;}
+  .input-row{display:flex;flex-direction:column;gap:3px;}
+  .input-row label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);}
+  .input-row input,.input-row select{background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:7px 10px;width:100%;outline:none;transition:border 0.2s;}
+  .input-row input:focus,.input-row select:focus{border-color:var(--gold);}
+  .input-row select option{background:var(--steel-mid);}
+  .input-row .hint{font-size:10px;color:var(--text-muted);margin-top:1px;}
+  .calc-results{display:flex;flex-direction:column;gap:6px;}
+  .result-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:rgba(0,0,0,0.22);border-left:2px solid transparent;}
+  .result-row.key{border-left-color:var(--gold);background:rgba(201,168,76,0.06);}
+  .result-label{font-size:11px;color:var(--text-muted);}
+  .result-value{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--cream);}
+  .result-value.good{color:var(--green-light);}
+  .result-value.bad{color:#e07070;}
+  .result-value.warn{color:#e09a40;}
+  .verdict{margin-top:8px;padding:12px;border:1px solid;font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;letter-spacing:0.5px;}
+  .pm-note{background:rgba(201,134,42,0.1);border:1px solid rgba(201,134,42,0.3);padding:8px 12px;font-size:11px;color:#e09a40;font-family:'IBM Plex Mono',monospace;margin-bottom:10px;}
+  .price-tier{border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;position:relative;}
+  .price-tier .tier-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+  .price-tier .tier-range{font-family:'Playfair Display',serif;font-size:17px;color:var(--cream);margin-bottom:6px;}
+  .price-tier .tier-verdict{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9px;padding:2px 8px;letter-spacing:0.5px;margin-bottom:6px;}
+  .price-tier .tier-body{font-size:11px;color:var(--text-muted);line-height:1.6;}
+  .divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+  .mb-14{margin-bottom:14px;}
+  .mb-10{margin-bottom:10px;}
+  .mt-14{margin-top:14px;}
+  .note{font-size:10px;color:var(--text-muted);font-style:italic;margin-top:7px;}
+  .two-col-flags{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>CRAFTON, PA<br><span>Investment Playbook</span> v2</h1>
+      <div class="header-sub">LUMINOUS STEEL CITY HOLDINGS LLC · SMALL MULTIFAMILY (2–4 UNITS) · 15205 · MAY 2026</div>
+      <div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:5px;">
+        <span style="background:rgba(61,160,103,0.2);color:var(--green-light);font-family:'IBM Plex Mono',monospace;font-size:9px;padding:2px 8px;letter-spacing:0.5px;">$100K–$300K RANGE</span>
+        <span style="background:rgba(201,168,76,0.15);color:var(--gold-light);font-family:'IBM Plex Mono',monospace;font-size:9px;padding:2px 8px;letter-spacing:0.5px;">COSMETIC REHAB ONLY</span>
+        <span style="background:rgba(61,69,96,0.6);color:var(--text-muted);font-family:'IBM Plex Mono',monospace;font-size:9px;padding:2px 8px;letter-spacing:0.5px;">PM COMPANY MANAGED</span>
+      </div>
+    </div>
+    <div class="badges">
+      <div class="badge">MAY 2026</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('market')">📊 Market</div>
+  <div class="tab" onclick="showTab('rents')">🏠 Rents</div>
+  <div class="tab" onclick="showTab('taxes')">🧾 Taxes</div>
+  <div class="tab" onclick="showTab('strategy')">🎯 Strategy</div>
+  <div class="tab" onclick="showTab('pricing')">💲 Price Tiers</div>
+  <div class="tab" onclick="showTab('calculator')">🔢 Calculator</div>
+  <div class="tab" onclick="showTab('pm')">🏢 PM Guide</div>
+  <div class="tab" onclick="showTab('tenants')">👥 Tenants</div>
+  <div class="tab" onclick="showTab('flags')">🚦 Deal Flags</div>
+  <div class="tab" onclick="showTab('checklist')">✅ Diligence</div>
+</div>
+
+<!-- MARKET -->
+<div class="panel active" id="panel-market">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Crafton Borough — Market Snapshot (2025–2026)</div>
+  <div class="grid-4 mb-14">
+    <div class="card"><div class="card-accent"></div><div class="card-label">Median Sale Price</div><div class="card-value gold">$259K</div><div class="card-sub">+4.3% YoY · Feb 2025</div></div>
+    <div class="card"><div class="card-accent green"></div><div class="card-label">Renter Concentration</div><div class="card-value green">47%</div><div class="card-sub">~2,850 renter households</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">Avg Days on Market</div><div class="card-value gold">32 days</div><div class="card-sub">Seller's market</div></div>
+    <div class="card"><div class="card-accent green"></div><div class="card-label">Rent YoY Growth</div><div class="card-value green">+2.6%</div><div class="card-sub">Stable, low-volatility</div></div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Location Fundamentals</div>
+      <table class="data-table">
+        <tr><td class="mu">Borough / County</td><td class="hl">Crafton Boro, Allegheny County</td></tr>
+        <tr><td class="mu">ZIP</td><td class="hl">15205</td></tr>
+        <tr><td class="mu">Distance to PGH CBD</td><td>~6 miles west</td></tr>
+        <tr><td class="mu">Population</td><td>~5,961–6,424</td></tr>
+        <tr><td class="mu">School District</td><td>Carlynton SD</td></tr>
+        <tr><td class="mu">Housing Stock Avg Age</td><td>~40 years</td></tr>
+        <tr><td class="mu">Per Capita Income</td><td>$47,575 (2024)</td></tr>
+        <tr><td class="mu">Cost of Living Index</td><td>93.1 (below national avg)</td></tr>
+        <tr><td class="mu">Poverty Rate</td><td>9.6%</td></tr>
+        <tr><td class="mu">Niche Rating</td><td class="gr">One of best places in PA</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Why Crafton for Your Strategy</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text"><strong>CASH-FLOW MARKET</strong>Low appreciation (1.9%/yr) — returns come from income, not price gain. Right fit for B&H and PM-managed portfolio.</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text"><strong>ENTRY PRICE IN YOUR RANGE</strong>2–4 unit properties routinely trade $120K–$275K — squarely in your $100K–$300K window.</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text"><strong>PM-FRIENDLY MARKET</strong>Property managers active here; Pittsburgh PM rates 8–10% of collected rents are standard and competitive.</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text"><strong>PM COMPRESSES MARGINS</strong>Adding 9% PM fee to expenses shifts your breakeven price lower — you must buy right to still cash flow.</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text"><strong>COSMETIC ONLY = FEWER BRRRR TARGETS</strong>Most sub-$140K Crafton properties need medium–heavy rehab. Expect to pass on more deals to stay within your tolerance.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- RENTS -->
+<div class="panel" id="panel-rents">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Crafton Rent Schedule — Conservative Underwriting Benchmarks</div>
+  <table class="data-table mb-14">
+    <thead><tr><th>Unit Type</th><th>Market Low</th><th>Market Mid</th><th>Market High</th><th>Underwrite At</th><th>HCV Payment Std</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="hl">Studio</td><td>$600</td><td>$675</td><td>$800</td><td class="gr">$640</td><td class="mu">N/A</td><td class="mu">Use only in pro formas; avoid as primary unit type</td></tr>
+      <tr><td class="hl">1 BR / 1 BA</td><td>$700</td><td>$790</td><td>$1,000</td><td class="gr">$760</td><td class="mu">~$900–$1,000</td><td class="mu">Solid for singles/couples; widest applicant pool</td></tr>
+      <tr><td class="hl">2 BR / 1 BA</td><td>$800</td><td>$900–$950</td><td>$1,200</td><td class="gr">$875</td><td class="mu">~$1,100–$1,300</td><td class="mu">Core target unit — best demand/supply balance</td></tr>
+      <tr><td class="hl">3 BR / 1 BA</td><td>$1,100</td><td>$1,300</td><td>$1,564+</td><td class="gr">$1,175</td><td class="mu">~$1,400–$1,600</td><td class="mu">Families; longer tenancies; higher HCV upside</td></tr>
+      <tr><td class="hl">3 BR / 2 BA (updated)</td><td>$1,300</td><td>$1,500</td><td>$1,800</td><td class="gr">$1,375</td><td class="mu">~$1,500–$1,700</td><td class="mu">Post-cosmetic-update unit; best rent/cost ratio</td></tr>
+    </tbody>
+  </table>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Duplex (2× 2BR/1BA) — Base Case EGI</div>
+      <table class="data-table">
+        <tr><td class="mu">Gross Potential Rent</td><td class="hl">$1,750/mo · $21,000/yr</td></tr>
+        <tr><td class="mu">Vacancy (8%)</td><td class="rd">-$140/mo</td></tr>
+        <tr><td class="mu">Credit Loss (2%)</td><td class="rd">-$35/mo</td></tr>
+        <tr><td class="mu">Effective Gross Income</td><td class="gr">$1,575/mo · $18,900/yr</td></tr>
+        <tr><td class="mu">PM Fee (9% of collected)</td><td class="rd">-$142/mo · -$1,701/yr</td></tr>
+        <tr><td class="mu">EGI After PM</td><td class="gr">$1,433/mo · $17,199/yr</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Triplex (2× 2BR + 1× 1BR) — Base Case EGI</div>
+      <table class="data-table">
+        <tr><td class="mu">Gross Potential Rent</td><td class="hl">$2,510/mo · $30,120/yr</td></tr>
+        <tr><td class="mu">Vacancy (8%)</td><td class="rd">-$201/mo</td></tr>
+        <tr><td class="mu">Credit Loss (2%)</td><td class="rd">-$50/mo</td></tr>
+        <tr><td class="mu">Effective Gross Income</td><td class="gr">$2,259/mo · $27,108/yr</td></tr>
+        <tr><td class="mu">PM Fee (9% of collected)</td><td class="rd">-$203/mo · -$2,440/yr</td></tr>
+        <tr><td class="mu">EGI After PM</td><td class="gr">$2,056/mo · $24,668/yr</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="alert yellow mt-14">
+    <div class="alert-title">⚠️ KEY UNDERWRITING NOTE — PM CHANGES YOUR BREAKEVEN</div>
+    At 9% PM on a duplex, you're paying ~$142/mo before taxes, insurance, or debt service. This shifts your maximum purchase price down ~$18K–$22K vs. self-managing. Sub-$165K is where duplexes start to breathe with a PM. Triplexes at sub-$215K are more viable. Always model PM as a permanent cost — never assume you'll switch to self-manage later.
+  </div>
+</div>
+</div>
+
+<!-- TAXES -->
+<div class="panel" id="panel-taxes">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Crafton Tax Structure — Three Taxing Entities, One Bill</div>
+  <div class="grid-3 mb-14">
+    <div class="card"><div class="card-accent"></div><div class="card-label">Borough Millage</div><div class="card-value gold">8.59</div><div class="card-sub">mills · Crafton Borough (2025)</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">School District Millage</div><div class="card-value gold">28.5082</div><div class="card-sub">mills · Carlynton SD</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">County Millage</div><div class="card-value gold">6.43</div><div class="card-sub">mills · Allegheny Co. (raised 2025)</div></div>
+  </div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">⚙️ HOW ALLEGHENY COUNTY ASSESSMENT WORKS — CRITICAL TO UNDERSTAND</div>
+    Base year is <strong>2012</strong>. The Common Level Ratio (CLR) is <strong>52.7%</strong> for 2025 — your property is assessed at ~52.7% of market value, not the purchase price. This means your tax bill is significantly lower than you'd expect at full value. A $200K purchase has taxes calculated on ~$105,400. Total combined millage = <strong>43.5382 mills</strong>.
+  </div>
+  <div class="section-title sm"><div class="dot"></div>Tax Estimates Across Your Price Range ($100K–$300K)</div>
+  <table class="data-table mb-14">
+    <thead><tr><th>Purchase Price</th><th>Assessed Value (×52.7%)</th><th>Est. Annual Tax</th><th>Monthly Tax</th><th>% of 2BR Duplex GPR</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>$110,000</td><td>$57,970</td><td class="gr">$2,524/yr</td><td class="gr">$210/mo</td><td class="mu">12.0%</td><td class="gr">✅ Excellent</td></tr>
+      <tr><td>$140,000</td><td>$73,780</td><td class="gr">$3,213/yr</td><td class="gr">$268/mo</td><td class="mu">15.3%</td><td class="gr">✅ Strong</td></tr>
+      <tr><td>$165,000</td><td>$86,955</td><td class="gr">$3,785/yr</td><td class="gr">$315/mo</td><td class="mu">18.0%</td><td class="gr">✅ Workable</td></tr>
+      <tr><td>$185,000</td><td>$97,495</td><td>$4,244/yr</td><td>$354/mo</td><td class="mu">20.2%</td><td>🟡 Watch it</td></tr>
+      <tr><td>$215,000</td><td>$113,305</td><td class="rd">$4,932/yr</td><td class="rd">$411/mo</td><td class="mu">23.5%</td><td class="rd">⚠️ Triplex only</td></tr>
+      <tr><td>$250,000</td><td>$131,750</td><td class="rd">$5,735/yr</td><td class="rd">$478/mo</td><td class="mu">27.3%</td><td class="rd">⚠️ Triplex/4-plex only</td></tr>
+      <tr><td>$285,000</td><td>$150,195</td><td class="rd">$6,538/yr</td><td class="rd">$545/mo</td><td class="mu">31.1%</td><td class="rd">🔴 4-plex only</td></tr>
+    </tbody>
+  </table>
+  <div class="grid-2">
+    <div class="alert green">
+      <div class="alert-title">💡 TAX APPEAL OPPORTUNITY — USE THIS</div>
+      If you buy at market and assessment is stale (likely), appeal your assessment down. File by Sept 1 each year for following year. Target post-appeal assessed value = purchase price × 52.7%. Can save $300–$800/yr. Hire a Pittsburgh tax appeal firm — contingency fee basis available.
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Other Tax Obligations</div>
+      <table class="data-table">
+        <tr><td class="mu">PA Transfer Tax at purchase</td><td>2% of sale price (1% state + 1% local)</td></tr>
+        <tr><td class="mu">PA State Income Tax on net rental</td><td>3.07% flat rate</td></tr>
+        <tr><td class="mu">Federal (pass-through via LLC)</td><td>Taxed at your personal rate; depreciation offsets</td></tr>
+        <tr><td class="mu">LLC Annual Report (PA)</td><td>$7/yr — very low</td></tr>
+        <tr><td class="mu">Jordan Tax Services</td><td>Handles Crafton Borough tax collection</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- STRATEGY -->
+<div class="panel" id="panel-strategy">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>3-Strategy Framework — Calibrated to Your Parameters</div>
+  <div class="grid-3 mb-14">
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:var(--green-light);"></div>
+      <div class="s-label">Strategy 1 — Primary</div>
+      <div class="s-title">Buy & Hold</div>
+      <div class="s-trigger">Trigger: <span>Any deal $100K–$215K</span> that pencils with PM</div>
+      <div class="s-metrics">
+        <div>Min Cap Rate: <span>8%+ (PM-adjusted)</span></div>
+        <div>Min CoC: <span>7%+ after PM</span></div>
+        <div>Rehab: <span>Cosmetic only ✅</span></div>
+        <div>Financing: <span>DSCR or conventional</span></div>
+        <div>DSCR Min: <span>1.20×</span></div>
+        <div>Target Cash Flow: <span>$150+/mo/unit</span></div>
+      </div>
+      <div class="s-note">⭐ Your bread-and-butter. Find a solid duplex at $140K–$165K, cosmetic refresh, PM-managed. Repeat.</div>
+    </div>
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:var(--gold);"></div>
+      <div class="s-label">Strategy 2 — Selective</div>
+      <div class="s-title">House Hack</div>
+      <div class="s-trigger">Trigger: <span>$150K–$260K</span> if you're willing to live in Crafton</div>
+      <div class="s-metrics">
+        <div>Down Payment: <span>3.5–5% (FHA/Conv)</span></div>
+        <div>Net Cost Goal: <span>&lt;$700/mo out-of-pocket</span></div>
+        <div>Rehab: <span>Cosmetic only ✅</span></div>
+        <div>Financing: <span>Owner-occ conventional</span></div>
+        <div>PM: <span>Self-manage while living in</span></div>
+        <div>Exit: <span>Move out → hire PM → B&H</span></div>
+      </div>
+      <div class="s-note">🏠 Only applicable if you're willing to relocate to Crafton from Homestead. Saves ~$200+/mo vs renting.</div>
+    </div>
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:#7a9fd4;"></div>
+      <div class="s-label">Strategy 3 — Opportunistic</div>
+      <div class="s-title">BRRRR (Cosmetic Edition)</div>
+      <div class="s-trigger">Trigger: <span>Sub-$120K distressed</span> but cosmetic-only scope</div>
+      <div class="s-metrics">
+        <div>Max Buy: <span>65% of ARV minus rehab</span></div>
+        <div>ARV Target: <span>$190K–$240K</span></div>
+        <div>Max Rehab: <span>$15K–$25K cosmetic</span></div>
+        <div>Financing: <span>Hard money → DSCR refi</span></div>
+        <div>Refi Target: <span>75% LTV of ARV</span></div>
+        <div>Cash Left In: <span>Target &lt;$15K</span></div>
+      </div>
+      <div class="s-note">⚠️ RARE FIND. Cosmetic-only scope at sub-$120K in Crafton means the deal likely has other issues. Inspect hard.</div>
+    </div>
+  </div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">⚠️ THE PM REALITY CHECK — READ THIS BEFORE EVERY OFFER</div>
+    A PM company at 9% of collected rents is a permanent $130–$230/mo cost depending on unit count. This isn't optional for you — it's a business model decision. That means your minimum cap rate at purchase needs to be <strong>8%+ (not 6–7%)</strong> to still generate meaningful cash flow after PM, taxes, insurance, and debt service. Deals that "work" for a self-managing investor often don't pencil for a PM-managed investor at the same price. Always run the PM-adjusted numbers.
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Financing Matrix (Your Options)</div>
+      <table class="data-table">
+        <thead><tr><th>Scenario</th><th>Loan Type</th><th>Rate Est.</th><th>Down</th></tr></thead>
+        <tbody>
+          <tr><td>B&H investment</td><td class="hl">DSCR</td><td>7.5–8.5%</td><td>20–25%</td></tr>
+          <tr><td>House hack (live-in)</td><td class="hl">Conventional</td><td>6.5–7.25%</td><td>5%</td></tr>
+          <tr><td>BRRRR — buy</td><td class="hl">Hard money</td><td>10–13%</td><td>10–20%</td></tr>
+          <tr><td>BRRRR — refi</td><td class="hl">DSCR refi</td><td>7.5–8.5%</td><td>N/A</td></tr>
+          <tr><td>Creative / off-market</td><td class="hl">Seller financing</td><td>Negotiated</td><td>Negotiated</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>BRRRR Cosmetic Scope — What Qualifies</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text"><strong>IN SCOPE (COSMETIC)</strong>Paint, flooring, fixtures, light switches/outlets, cabinet hardware, bathroom vanity, appliance swap, exterior curb appeal, landscaping, cleaning/haul-out.</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text"><strong>OUT OF SCOPE (DEAL KILLER)</strong>Roof replacement, HVAC replacement, foundation work, full kitchen gut, plumbing stack replacement, electrical panel upgrade, window replacement.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PRICE TIERS -->
+<div class="panel" id="panel-pricing">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Purchase Price Tier Guide — PM-Adjusted, Crafton 2–4 Units</div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">HOW TO READ THIS — All scenarios assume: 20% down · 7.75% rate · 9% PM · 8% vacancy · Duplex $1,750 GPR / Triplex $2,510 GPR</div>
+  </div>
+
+  <div class="price-tier">
+    <div class="tier-label" style="color:var(--green-light);">TIER 1 — SWEET SPOT</div>
+    <div class="tier-range">$100,000 – $149,000</div>
+    <div class="tier-verdict" style="background:rgba(45,122,79,0.2);color:var(--green-light);">🟢 STRONG BUY (if cosmetic-only scope)</div>
+    <div class="tier-body">Duplex at $130K: est. cap rate ~9.5%, CoC ~10%+, cash flow ~$300–$400/mo after PM. This is your ideal acquisition zone. Rare but findable off-market or through motivated sellers. At this price, cosmetic-only scope is the challenge — expect most deals to need more. If it truly only needs cosmetics at $130K, it's exceptional. Run every number twice and inspect everything.</div>
+  </div>
+
+  <div class="price-tier">
+    <div class="tier-label" style="color:var(--gold);">TIER 2 — CORE TARGET RANGE</div>
+    <div class="tier-range">$150,000 – $185,000</div>
+    <div class="tier-verdict" style="background:rgba(201,168,76,0.15);color:var(--gold-light);">🟡 BUY IF NUMBERS WORK</div>
+    <div class="tier-body">Duplex at $165K: est. cap rate ~7.8%, CoC ~6.5%, cash flow ~$120–$200/mo after PM. This is realistic and achievable for move-in-ready or light cosmetic units. Triplex in this range is excellent — rents spread across 3 units materially improves the math. Verify rents are at or near market before closing. If current rents are below market, model the lease-up to market as upside.</div>
+  </div>
+
+  <div class="price-tier">
+    <div class="tier-label" style="color:#e09a40;">TIER 3 — TRIPLEX / QUADPLEX TERRITORY</div>
+    <div class="tier-range">$185,000 – $240,000</div>
+    <div class="tier-verdict" style="background:rgba(201,134,42,0.15);color:#e09a40);">🟡 DUPLEXES DON'T PENCIL — 3–4 UNITS ONLY</div>
+    <div class="tier-body">A duplex at $200K with PM barely breaks even — likely negative cash flow. A triplex or 4-plex in this range can still produce 6–8% cap rate and $150–$300/mo cash flow. Do not buy a duplex above $185K unless you have documented path to rents above $1,000/unit or you're house-hacking. This range is also viable for strong BRRRR recycling if you can get there via a sub-$130K acquisition + $40–$60K (non-cosmetic) rehab financed through hard money.</div>
+  </div>
+
+  <div class="price-tier">
+    <div class="tier-label" style="color:#e07070;">TIER 4 — HIGH CAUTION</div>
+    <div class="tier-range">$240,000 – $300,000</div>
+    <div class="tier-verdict" style="background:rgba(184,64,64,0.15);color:#e07070;">🔴 ONLY 4-PLEX WITH STRONG RENTS</div>
+    <div class="tier-body">At $265K, you need 4 units generating $700+/unit ($2,800+/mo GPR) to approach an 8% cap rate with PM costs. The Crafton market does not reliably support these rents at scale. Approaching $300K requires a quad with 3BR units or significant value-add potential that goes beyond cosmetics. Be very skeptical of any deal in this range unless the seller is highly motivated, rents are well-documented above $700/unit, and there are 3–4 units.</div>
+  </div>
+</div>
+</div>
+
+<!-- CALCULATOR -->
+<div class="panel" id="panel-calculator">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Crafton Deal Analyzer — PM-Adjusted</div>
+  <div class="pm-note">📌 PM fee defaults to 9% of collected rents (Crafton/Pittsburgh market standard). Taxes auto-calculated using Allegheny CLR 52.7% × 43.5382 mills.</div>
+  <div class="calc-wrap">
+    <div class="calc-inputs">
+      <div class="input-row">
+        <label>Property Type</label>
+        <select id="ptype" onchange="calc()">
+          <option value="duplex">Duplex (2 units)</option>
+          <option value="triplex">Triplex (3 units)</option>
+          <option value="quad">Quad (4 units)</option>
+        </select>
+      </div>
+      <div class="input-row">
+        <label>Purchase Price ($)</label>
+        <input type="number" id="pp" value="165000" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Down Payment (%)</label>
+        <input type="number" id="dp" value="20" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Interest Rate (%)</label>
+        <input type="number" id="rate" value="7.75" step="0.25" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Monthly Gross Rent ($)</label>
+        <input type="number" id="rent" value="1750" oninput="calc()">
+        <div class="hint">Duplex default: $1,750 · Triplex: $2,510 · Quad: $3,280</div>
+      </div>
+      <div class="input-row">
+        <label>Vacancy Rate (%)</label>
+        <input type="number" id="vac" value="8" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>PM Fee (% of collected)</label>
+        <input type="number" id="pmfee" value="9" oninput="calc()">
+        <div class="hint">Pittsburgh market: 8–10%</div>
+      </div>
+      <div class="input-row">
+        <label>Monthly Insurance ($)</label>
+        <input type="number" id="ins" value="125" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Monthly CapEx / Maintenance ($)</label>
+        <input type="number" id="capex" value="150" oninput="calc()">
+        <div class="hint">Cosmetic-only: use $100–$175/mo</div>
+      </div>
+      <div class="input-row">
+        <label>Other Monthly Expenses ($)</label>
+        <input type="number" id="other" value="40" oninput="calc()">
+      </div>
+    </div>
+    <div>
+      <div class="calc-results" id="results"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PM GUIDE -->
+<div class="panel" id="panel-pm">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Property Management — Crafton / Pittsburgh Guide</div>
+  <div class="grid-2 mb-14">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>What to Expect from a Pittsburgh PM</div>
+      <table class="data-table">
+        <tr><td class="mu">Management Fee</td><td class="hl">8–10% of collected monthly rent</td></tr>
+        <tr><td class="mu">Leasing / Placement Fee</td><td>50–100% of 1st month's rent (one-time)</td></tr>
+        <tr><td class="mu">Lease Renewal Fee</td><td>$100–$250 flat or 25–50% of 1 month</td></tr>
+        <tr><td class="mu">Maintenance Markup</td><td>0–15% over cost (ask upfront)</td></tr>
+        <tr><td class="mu">Eviction Coordination</td><td>$200–$500 flat + filing costs (~$300 in PA)</td></tr>
+        <tr><td class="mu">Vacant Unit Fee</td><td>Some charge 50% of mgmt fee while vacant</td></tr>
+        <tr><td class="mu">Annual Inspection</td><td>$75–$150/unit (some included)</td></tr>
+        <tr><td class="mu">Monthly Statements</td><td>Should be included; ask about portal access</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>PM Interview Questions — Non-Negotiable Asks</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">How many units do you manage in 15205 / Crafton / Brookline?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">What is your average days-to-lease for a vacant 2BR?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">Do you accept Section 8 / HCV? How do you handle inspections?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">What maintenance threshold requires my approval? ($200–$500 is standard)</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">Do you markup vendor invoices? If so, how much?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">How are security deposits handled and where are they held?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">What is your eviction rate over the last 12 months?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">Can I see a sample owner statement and management agreement?</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="alert yellow">
+      <div class="alert-title">💡 PM FEE UNDERWRITING — MODEL IT AS A PERMANENT EXPENSE</div>
+      Never underwrite a deal assuming you'll eventually self-manage. If you're building a PM-managed portfolio under Luminous Steel City Holdings LLC, that 9% is baked into your business model permanently. Deals that only cash flow if you self-manage are not your deals.
+    </div>
+    <div class="alert green">
+      <div class="alert-title">✅ PM + HCV = POWERFUL COMBO IN CRAFTON</div>
+      A PM company experienced with Housing Choice Vouchers can significantly improve your income stability. HCV tenants in Crafton pay $1,100–$1,600/mo for 2–3BR units — often above market. Direct deposit from housing authority. Lower effective vacancy. Ask any PM you interview about their HCV experience specifically.
+    </div>
+  </div>
+  <div class="section-title sm"><div class="dot"></div>Annual PM Cost Impact — By Deal Size</div>
+  <table class="data-table">
+    <thead><tr><th>Property Type</th><th>Monthly GPR</th><th>PM @ 9%/mo</th><th>Annual PM Cost</th><th>Leasing Fee (est.)</th><th>Year-1 Total PM Cost</th></tr></thead>
+    <tbody>
+      <tr><td>Duplex (2BR/2BR)</td><td>$1,750</td><td class="rd">$158/mo</td><td class="rd">$1,890/yr</td><td class="rd">$875</td><td class="rd">~$2,765/yr</td></tr>
+      <tr><td>Triplex (2BR/2BR/1BR)</td><td>$2,510</td><td class="rd">$226/mo</td><td class="rd">$2,711/yr</td><td class="rd">$1,255</td><td class="rd">~$3,966/yr</td></tr>
+      <tr><td>Quadplex (4× 2BR)</td><td>$3,500</td><td class="rd">$315/mo</td><td class="rd">$3,780/yr</td><td class="rd">$1,750</td><td class="rd">~$5,530/yr</td></tr>
+    </tbody>
+  </table>
+  <div class="note">* Leasing fee assumes 1 unit turns over per year at 50% of 1st month's rent. Actual Year-1 may be higher if units are vacant at purchase.</div>
+</div>
+</div>
+
+<!-- TENANTS -->
+<div class="panel" id="panel-tenants">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Tenant Profile — Crafton Borough</div>
+  <div class="grid-2 mb-14">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Who Rents Here</div>
+      <table class="data-table">
+        <tr><td class="mu">Primary Renter Types</td><td>Young professionals, working families, Pittsburgh CBD commuters</td></tr>
+        <tr><td class="mu">Per Capita Income</td><td class="hl">$47,575 (2024)</td></tr>
+        <tr><td class="mu">Poverty Rate</td><td>9.6% — manageable</td></tr>
+        <tr><td class="mu">3× Rent Qualifying Income</td><td>$875/mo 2BR → need ~$31,500/yr ✅</td></tr>
+        <tr><td class="mu">Employment Draw</td><td>UPMC, CMU/Pitt, PGH CBD (busway access)</td></tr>
+        <tr><td class="mu">Transit</td><td>Port Authority busway at Crafton stop</td></tr>
+        <tr><td class="mu">Lifestyle Anchors</td><td>Crafton-Ingram Shopping, Giant Eagle, Planet Fitness, restaurants on Noblestown Rd</td></tr>
+        <tr><td class="mu">Niche Rating</td><td class="gr">Top-rated suburb in PA — strong renter retention driver</td></tr>
+        <tr><td class="mu">Violent Crime Rate</td><td class="gr">224/100K — well below national avg</td></tr>
+        <tr><td class="mu">Overall Crime</td><td>8.9% above national avg (property-crime driven)</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>PM-Managed Screening Standards</div>
+      <table class="data-table">
+        <thead><tr><th>Criteria</th><th>Minimum</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td class="mu">Income</td><td>3× rent</td><td class="gr">3.5× rent</td></tr>
+          <tr><td class="mu">Credit Score</td><td>580+</td><td class="gr">640+</td></tr>
+          <tr><td class="mu">Employment</td><td>6 months</td><td class="gr">1+ year same employer</td></tr>
+          <tr><td class="mu">Rental History</td><td>1 landlord ref</td><td class="gr">2+ refs, no evictions</td></tr>
+          <tr><td class="mu">Background</td><td>No violent felonies</td><td class="gr">Clean 7yr</td></tr>
+          <tr><td class="mu">HCV / Section 8</td><td colspan="2" class="gr">Accept — widens pool significantly</td></tr>
+        </tbody>
+      </table>
+      <div class="alert green" style="margin-top:10px;">
+        <div class="alert-title">HCV PAYMENT STANDARDS — ALLEGHENY COUNTY</div>
+        2BR: ~$1,100–$1,300/mo · 3BR: ~$1,400–$1,600/mo. HCV puts rents 15–25% above standard market in Crafton. Make sure your PM is experienced with HACP inspections and voucher processing.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- FLAGS -->
+<div class="panel" id="panel-flags">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Deal Flags — Green / Yellow / Red (PM + Cosmetic Calibrated)</div>
+  <div class="grid-3">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--green-light);margin-bottom:8px;padding:5px 10px;background:rgba(45,122,79,0.15);">🟢 GREEN FLAGS — BUY SIGNAL</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Duplex ≤$165K or Triplex ≤$215K — PM still pencils</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Cap rate 8%+ after PM, taxes, insurance at ask</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Separate utilities — tenants pay own gas/electric</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Off-street parking per unit (PM loves this for leasing)</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Roof &lt;10 years — no CapEx surprise on horizon</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">200A electrical per unit, updated panels</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Tenants in place, at or near market rent</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Cosmetic-only condition confirmed by inspector</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">HCV-eligible units (passes or close to HACP standards)</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">45+ days on market / motivated seller = negotiating power</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:#e09a40;margin-bottom:8px;padding:5px 10px;background:rgba(201,134,42,0.15);">🟡 YELLOW FLAGS — PRICE / DILIGENCE REQUIRED</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Duplex $165K–$200K — stress-test at $800 rent and 10% vacancy</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Owner-pays utilities — add $150–$250/unit to expense model</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Roof 10–20 years — get inspection and bid; factor reserve</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Single furnace / shared HVAC — increases your operating cost</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Below-market rents — model lease-up timeline carefully</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Month-to-month leases — stable but no term protection</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">PM quotes more than 10% management fee — negotiate or shop</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Northwest quadrant Crafton — slightly elevated property crime per CrimeGrade</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:#e07070;margin-bottom:8px;padding:5px 10px;background:rgba(184,64,64,0.15);">🔴 RED FLAGS — WALK AWAY</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Knob & tube wiring — no insurance, no lender financing</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Oil heat / underground fuel tank — liability and cost nightmare</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Foundation cracks, bowing walls, water in basement</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Unpermitted unit conversions — borough compliance risk</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Needs roof, HVAC, or electrical — outside cosmetic-only scope</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Cap rate &lt;6.5% even at ask — PM kills cash flow</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Active code violations / borough liens</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Duplex over $200K — PM won't cash flow at Crafton rents</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Lead paint without disclosure on pre-1978 buildings</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="panel" id="panel-checklist">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Due Diligence Checklist — Crafton Multifamily</div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Pre-Offer</div>
+      <div id="pre-offer"></div>
+      <div class="section-title sm"><div class="dot"></div>Physical Inspection</div>
+      <div id="physical"></div>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Financial & Legal</div>
+      <div id="financial"></div>
+      <div class="section-title sm"><div class="dot"></div>Closing & Post-Close</div>
+      <div id="closing"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function calc() {
+  const ptype = document.getElementById('ptype').value;
+  const pp = parseFloat(document.getElementById('pp').value)||0;
+  const dpPct = parseFloat(document.getElementById('dp').value)||20;
+  const rate = parseFloat(document.getElementById('rate').value)||7.75;
+  const rentGross = parseFloat(document.getElementById('rent').value)||0;
+  const vacPct = parseFloat(document.getElementById('vac').value)||8;
+  const pmPct = parseFloat(document.getElementById('pmfee').value)||9;
+  const ins = parseFloat(document.getElementById('ins').value)||0;
+  const capex = parseFloat(document.getElementById('capex').value)||0;
+  const other = parseFloat(document.getElementById('other').value)||0;
+
+  const dp = pp * dpPct / 100;
+  const loan = pp - dp;
+  const mr = rate / 100 / 12;
+  const pi = mr>0 ? loan*(mr*Math.pow(1+mr,360))/(Math.pow(1+mr,360)-1) : loan/360;
+
+  const assessedVal = pp * 0.527;
+  const monthlyTax = assessedVal * 0.0435382 / 12;
+
+  const egi = rentGross * (1 - vacPct/100);
+  const pmFee = egi * (pmPct/100);
+  const totalExp = monthlyTax + ins + capex + pmFee + other;
+  const noi = egi - totalExp;
+  const noi_yr = noi * 12;
+  const capRate = pp>0 ? (noi_yr/pp*100) : 0;
+  const cf = noi - pi;
+  const coc = dp>0 ? (cf*12/dp*100) : 0;
+  const dscr = pi>0 ? noi/pi : 0;
+  const grm = rentGross>0 ? pp/(rentGross*12) : 0;
+  const pricePerUnit = ptype==='duplex' ? pp/2 : ptype==='triplex' ? pp/3 : pp/4;
+
+  function fmt(n){ return '$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+  function fmtPct(n){ return n.toFixed(2)+'%'; }
+  function cls(v, g, w){ return v>=g?'good':v>=w?'warn':'bad'; }
+
+  const rows = [
+    {l:'Purchase Price', v:fmt(pp), c:'', key:false},
+    {l:'Down Payment', v:fmt(dp), c:'', key:false},
+    {l:'Loan Amount', v:fmt(loan), c:'', key:false},
+    {l:'Monthly P&I', v:fmt(pi), c:'', key:false},
+    {l:'Est. Monthly Tax', v:fmt(monthlyTax), c:'', key:false},
+    {l:'PM Fee ('+pmPct+'% of EGI)', v:fmt(pmFee)+'/mo', c:'bad', key:false},
+    {l:'Total Monthly Expenses', v:fmt(totalExp), c:'', key:false},
+    {l:'NOI (after expenses, before debt)', v:(noi<0?'-':'')+fmt(noi)+'/mo', c:cls(noi,0,-1), key:false},
+    {l:'Monthly Cash Flow', v:(cf<0?'-':'')+fmt(cf)+'/mo', c:cls(cf,150,0), key:true},
+    {l:'Annual Cash Flow', v:(cf*12<0?'-':'')+fmt(cf*12)+'/yr', c:cls(cf*12,1800,0), key:false},
+    {l:'Cap Rate (PM-adjusted)', v:fmtPct(capRate), c:cls(capRate,8,6.5), key:true},
+    {l:'Cash-on-Cash Return', v:fmtPct(coc), c:cls(coc,7,4), key:true},
+    {l:'DSCR', v:dscr.toFixed(2)+'x', c:cls(dscr,1.2,1.0), key:true},
+    {l:'Price Per Unit', v:fmt(pricePerUnit), c:'', key:false},
+    {l:'Gross Rent Multiplier', v:grm.toFixed(1)+'x  (target ≤10)', c:grm<=10?'good':grm<=12?'warn':'bad', key:false},
+  ];
+
+  let html = rows.map(r=>`<div class="result-row${r.key?' key':''}"><span class="result-label">${r.l}</span><span class="result-value ${r.c}">${r.v}</span></div>`).join('');
+
+  let verdict='', vc='';
+  if(capRate>=8 && coc>=7 && dscr>=1.2 && cf>=150){
+    verdict='🟢 STRONG DEAL — Meets PM-adjusted Crafton benchmarks'; vc='green';
+  } else if(capRate>=6.5 && dscr>=1.0 && cf>0){
+    verdict='🟡 MARGINAL — Negotiate price down $10K–$20K or find rent upside'; vc='yellow';
+  } else if(cf>=-200 && capRate>=5.5){
+    verdict='🟠 WEAK — Only works house-hack or if rents are well below market'; vc='yellow';
+  } else {
+    verdict="🔴 PASS — Doesn't pencil with PM at this price. Walk away."; vc='red';
+  }
+  html += `<div class="verdict" style="border-color:var(--${vc}-light,#e09a40);color:var(--${vc}-light,#e09a40);">${verdict}</div>`;
+  document.getElementById('results').innerHTML = html;
+}
+
+function buildChecklist(id, items) {
+  document.getElementById(id).innerHTML = items.map(item=>`
+    <div class="flag-row" style="margin-bottom:4px;cursor:pointer;" onclick="toggleCheck(this)">
+      <div class="flag-icon" style="font-size:13px;">⬜</div>
+      <div class="flag-text" style="font-size:11px;">${item}</div>
+    </div>`).join('');
+}
+
+function toggleCheck(el) {
+  const ic = el.querySelector('.flag-icon');
+  ic.textContent = ic.textContent==='⬜' ? '✅' : '⬜';
+}
+
+buildChecklist('pre-offer',[
+  'Pull Allegheny County parcel record & assessed value',
+  'Calculate estimated annual taxes (× 52.7% CLR × 43.5382 mills)',
+  'Check Crafton Borough for open code violations',
+  'Pull Allegheny County deed / lien history',
+  'Verify zoning allows 2–4 unit residential use',
+  'Confirm unit count matches deed — no unpermitted units',
+  'Pull West Penn MLS comps — 2–4 unit sales within 0.5mi, 12 months',
+  'Run deal analyzer — must hit 8% cap rate + 7% CoC with PM',
+  'Drive neighborhood multiple times / different hours',
+  'Confirm cosmetic-only scope (no roof/HVAC/electric major work)',
+]);
+
+buildChecklist('physical',[
+  'Licensed PA home inspector — full report',
+  'Roof: age, condition, remaining life estimate',
+  'Foundation: cracks, water intrusion, settling',
+  'Electrical: panel amperage per unit, no knob & tube',
+  'Plumbing: copper/PVC (not galvanized); no lead service line',
+  'HVAC: age, type, separate per unit vs shared',
+  'Water heater: age (10yr = replace soon), capacity',
+  'Windows: drafty / single-pane = tenant complaint driver',
+  'Pest / termite inspection (especially basement)',
+  'Confirm utility meters are separate per unit',
+  'No oil tank (above or below ground)',
+  'Cosmetic scope confirmed: paint, floors, fixtures only',
+]);
+
+buildChecklist('financial',[
+  'Request rent rolls — all units, lease dates, current amounts',
+  'Review 12 months payment history per tenant',
+  'Get actual utility bills (12 months) — if landlord-paid',
+  'Review all existing leases — terms, deposits held',
+  'Confirm security deposits in escrow (PA law requires)',
+  'Get 2 years actual operating expense history from seller',
+  'Get insurance quote — target $900–$1,400/yr for duplex',
+  'Run DSCR — confirm qualifies for target loan type',
+  'Confirm Luminous Steel City Holdings LLC on title at closing',
+  'Budget PA Transfer Tax (2% of purchase price)',
+  'Review title commitment — no surprise exceptions/liens',
+  'Model deal with PM fee as permanent line item',
+]);
+
+buildChecklist('closing',[
+  'All leases assigned at closing',
+  'Security deposits received from seller at closing',
+  'Tenant estoppel letters sent & confirmed',
+  'Re-key / change locks all units at closing',
+  'Written notice to tenants — new ownership, PM contact info',
+  'PM agreement signed and onboarded pre-closing',
+  'Separate operating bank account opened for property',
+  'CapEx reserve funded (target 1–2 months rent)',
+  'Update LLC operating agreement — add property to schedule',
+  'Schedule PM walkthrough within 30 days of closing',
+]);
+
+calc();
+</script>
+</body>
+</html>
