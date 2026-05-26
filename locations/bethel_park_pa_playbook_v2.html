@@ -401,8 +401,8 @@
 <!-- CALCULATOR -->
 <div class="panel" id="panel-calculator">
 <div class="content">
-  <div class="section-title"><div class="dot"></div>Bethel Park Deal Analyzer — PM-Adjusted</div>
-  <div class="pm-note">📌 Taxes are a screening estimate: purchase price × 50.14% CLR × 37.8863 mills. Verify the actual parcel assessment and tax bills before offering.</div>
+  <div class="section-title"><div class="dot"></div>Bethel Park Deal Analyzer — Management-Adjusted</div>
+  <div class="pm-note">📌 PM management defaults on at 10% of EGI; toggle Self-Managed to compare with no PM fee. Taxes are a screening estimate: purchase price × 50.14% CLR × 37.8863 mills. Verify the actual parcel assessment and tax bills before offering.</div>
   <div class="calc-wrap">
     <div class="calc-inputs">
       <div class="input-row">
@@ -438,6 +438,11 @@
       <div class="input-row">
         <label>Vacancy Rate (%)</label>
         <input type="number" id="vac" value="8" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Management Strategy</label>
+        <button class="toggle-btn" id="pm-toggle" style="width:100%;text-align:center;" onclick="togglePM()">PM Managed - Fee Included</button>
+        <div class="hint">Toggle self-management to calculate with no PM expense</div>
       </div>
       <div class="input-row">
         <label>PM Fee (% of EGI)</label>
@@ -646,6 +651,7 @@ function showTab(evt, name) {
 
 let insMode = 'yr';
 let otherMode = 'pct';
+let pmManaged = true;
 
 function setRentDefault() {
   const rents = {duplex:2700, triplex:3775, quad:5400};
@@ -686,6 +692,15 @@ function toggleOther() {
   calc();
 }
 
+function togglePM() {
+  pmManaged = !pmManaged;
+  const btn = document.getElementById('pm-toggle');
+  const inp = document.getElementById('pmfee');
+  btn.textContent = pmManaged ? 'PM Managed - Fee Included' : 'Self-Managed - PM Fee $0';
+  inp.disabled = !pmManaged;
+  calc();
+}
+
 function calc() {
   const ptype = document.getElementById('ptype').value;
   const pp = parseFloat(document.getElementById('pp').value) || 0;
@@ -694,7 +709,8 @@ function calc() {
   const rentGross = parseFloat(document.getElementById('rent').value) || 0;
   const otherIncome = parseFloat(document.getElementById('other_income').value) || 0;
   const vacPct = parseFloat(document.getElementById('vac').value) || 8;
-  const pmPct = parseFloat(document.getElementById('pmfee').value) || 10;
+  const configuredPmPct = parseFloat(document.getElementById('pmfee').value) || 10;
+  const pmPct = pmManaged ? configuredPmPct : 0;
   const insRaw = parseFloat(document.getElementById('ins').value) || 0;
   const insMonthly = insMode === 'yr' ? insRaw / 12 : insRaw;
   const capexPct = parseFloat(document.getElementById('capex').value) || 0;
@@ -744,13 +760,13 @@ function calc() {
     {l:'Insurance', v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr', c:'', key:false},
     {l:'Repairs &amp; Maint. (' + capexPct + '%)', v:fmt(capexMonthly) + '/mo', c:'', key:false},
     {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
-    {l:'PM Fee (' + pmPct + '% of EGI)', v:fmt(pmFee) + '/mo', c:'bad', key:false},
+    {l:pmManaged ? 'PM Fee (' + pmPct + '% of EGI)' : 'PM Fee (Self-Managed)', v:fmt(pmFee) + '/mo', c:pmManaged ? 'bad' : 'good', key:false},
     {l:'Total Monthly Expenses', v:fmt(totalExp) + '/mo', c:'', key:false},
     {l:'Operating Expense %', v:fmtPct(operatingExpPct) + ' of EGI', c:'', key:true},
     {l:'NOI (before debt service)', v:(noi < 0 ? '-' : '') + fmt(noi) + '/mo', c:cls(noi, 0, -1), key:false},
     {l:'Monthly Cash Flow', v:(cf < 0 ? '-' : '') + fmt(cf) + '/mo', c:cls(cf, 150 * units, 0), key:true},
     {l:'Annual Cash Flow', v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr', c:cls(cf * 12, 1800 * units, 0), key:false},
-    {l:'Cap Rate (PM-adjusted)', v:fmtPct(capRate), c:cls(capRate, 8, 6.5), key:true},
+    {l:'Cap Rate (' + (pmManaged ? 'PM-adjusted' : 'Self-managed') + ')', v:fmtPct(capRate), c:cls(capRate, 8, 6.5), key:true},
     {l:'Cash-on-Cash Return', v:fmtPct(coc), c:cls(coc, 7, 4), key:true},
     {l:'DSCR', v:dscr.toFixed(2) + 'x', c:cls(dscr, 1.2, 1.0), key:true},
     {l:'Price Per Unit', v:fmt(pricePerUnit), c:'', key:false},
@@ -760,7 +776,7 @@ function calc() {
   let html = rows.map(r => `<div class="result-row${r.key ? ' key' : ''}"><span class="result-label">${r.l}</span><span class="result-value ${r.c}">${r.v}</span></div>`).join('');
   let verdict = '', color = '';
   if (capRate >= 8 && coc >= 7 && dscr >= 1.2 && cf >= 150 * units) {
-    verdict = '🟢 STRONG DEAL — Meets PM-adjusted Bethel Park benchmarks';
+    verdict = '🟢 STRONG DEAL — Meets ' + (pmManaged ? 'PM-adjusted' : 'self-managed') + ' Bethel Park benchmarks';
     color = 'var(--green-light)';
   } else if (capRate >= 6.5 && dscr >= 1.0 && cf > 0) {
     verdict = '🟡 MARGINAL — Verify rent and tax upside before proceeding';
@@ -769,7 +785,7 @@ function calc() {
     verdict = '🟠 WEAK — Requires a different strategy or documented income upside';
     color = '#e09a40';
   } else {
-    verdict = "🔴 PASS — Does not pencil with PM at these inputs";
+    verdict = "🔴 PASS — Does not pencil under the selected management strategy";
     color = '#e07070';
   }
   html += `<div class="verdict" style="border-color:${color};color:${color};">${verdict}</div>`;

@@ -402,8 +402,8 @@
 <!-- CALCULATOR -->
 <div class="panel" id="panel-calculator">
 <div class="content">
-  <div class="section-title"><div class="dot"></div>Crafton Deal Analyzer — PM-Adjusted</div>
-  <div class="pm-note">📌 PM fee defaults to 10% of collected rents. Taxes auto-calculated using Allegheny CLR 52.7% × 43.5382 mills.</div>
+  <div class="section-title"><div class="dot"></div>Crafton Deal Analyzer — Management-Adjusted</div>
+  <div class="pm-note">📌 PM management defaults on at 10% of collected rents. Toggle Self-Managed to compare with no PM fee. Taxes auto-calculated using Allegheny CLR 52.7% × 43.5382 mills.</div>
   <div class="calc-wrap">
     <div class="calc-inputs">
       <div class="input-row">
@@ -439,6 +439,11 @@
       <div class="input-row">
         <label>Vacancy Rate (%)</label>
         <input type="number" id="vac" value="8" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Management Strategy</label>
+        <button class="toggle-btn" id="pm-toggle" style="width:100%;text-align:center;" onclick="togglePM()">PM Managed - Fee Included</button>
+        <div class="hint">Toggle self-management to calculate with no PM expense</div>
       </div>
       <div class="input-row">
         <label>PM Fee (% of collected)</label>
@@ -666,6 +671,7 @@ function showTab(name) {
 
 let insMode = 'yr';
 let otherMode = 'pct';
+let pmManaged = true;
 
 function toggleIns() {
   const btn = document.getElementById('ins-toggle');
@@ -700,6 +706,15 @@ function toggleOther() {
   calc();
 }
 
+function togglePM() {
+  pmManaged = !pmManaged;
+  const btn = document.getElementById('pm-toggle');
+  const inp = document.getElementById('pmfee');
+  btn.textContent = pmManaged ? 'PM Managed - Fee Included' : 'Self-Managed - PM Fee $0';
+  inp.disabled = !pmManaged;
+  calc();
+}
+
 function calc() {
   const ptype = document.getElementById('ptype').value;
   const pp = parseFloat(document.getElementById('pp').value)||0;
@@ -708,7 +723,8 @@ function calc() {
   const rentGross = parseFloat(document.getElementById('rent').value)||0;
   const otherIncome = parseFloat(document.getElementById('other_income').value)||0;
   const vacPct = parseFloat(document.getElementById('vac').value)||8;
-  const pmPct = parseFloat(document.getElementById('pmfee').value)||10;
+  const configuredPmPct = parseFloat(document.getElementById('pmfee').value)||10;
+  const pmPct = pmManaged ? configuredPmPct : 0;
   const insRaw = parseFloat(document.getElementById('ins').value)||0;
   const insMonthly = insMode === 'yr' ? insRaw / 12 : insRaw;
   const capexPct = parseFloat(document.getElementById('capex').value)||0;
@@ -759,13 +775,13 @@ function calc() {
     {l:'Insurance', v:fmt(insMonthly)+'/mo · '+fmt(insAnnual)+'/yr', c:'', key:false},
     {l:'Repairs &amp; Maint. ('+capexPct+'%/yr)', v:fmt(capexMonthly)+'/mo', c:'', key:false},
     {l:'Other Expenses ('+(otherMode === 'pct' ? otherInput+'%' : fmt(otherMonthly)+'/mo')+')', v:fmt(otherMonthly)+'/mo', c:'', key:false},
-    {l:'PM Fee ('+pmPct+'% of EGI)', v:fmt(pmFee)+'/mo', c:'bad', key:false},
+    {l:pmManaged ? 'PM Fee ('+pmPct+'% of EGI)' : 'PM Fee (Self-Managed)', v:fmt(pmFee)+'/mo', c:pmManaged?'bad':'good', key:false},
     {l:'Total Monthly Expenses', v:fmt(totalExp)+'/mo', c:'', key:false},
     {l:'Operating Expense %', v:fmtPct(operatingExpPct)+' of EGI', c:'', key:true},
     {l:'NOI (before debt service)', v:(noi<0?'-':'')+fmt(noi)+'/mo', c:cls(noi,0,-1), key:false},
     {l:'Monthly Cash Flow', v:(cf<0?'-':'')+fmt(cf)+'/mo', c:cls(cf,150,0), key:true},
     {l:'Annual Cash Flow', v:(cf*12<0?'-':'')+fmt(cf*12)+'/yr', c:cls(cf*12,1800,0), key:false},
-    {l:'Cap Rate (PM-adjusted)', v:fmtPct(capRate), c:cls(capRate,8,6.5), key:true},
+    {l:'Cap Rate ('+(pmManaged?'PM-adjusted':'Self-managed')+')', v:fmtPct(capRate), c:cls(capRate,8,6.5), key:true},
     {l:'Cash-on-Cash Return', v:fmtPct(coc), c:cls(coc,6,4), key:true},
     {l:'DSCR', v:dscr.toFixed(2)+'x', c:cls(dscr,1.2,1.0), key:true},
     {l:'Price Per Unit', v:fmt(pricePerUnit), c:'', key:false},
@@ -776,13 +792,13 @@ function calc() {
 
   let verdict='', vc='';
   if(capRate>=8 && coc>=6 && dscr>=1.2 && cf>=150){
-    verdict='🟢 STRONG DEAL — Meets PM-adjusted Crafton benchmarks'; vc='green';
+    verdict='🟢 STRONG DEAL — Meets '+(pmManaged?'PM-adjusted':'self-managed')+' Crafton benchmarks'; vc='green';
   } else if(capRate>=6.5 && dscr>=1.0 && cf>0){
     verdict='🟡 MARGINAL — Negotiate price down $10K–$20K or find rent upside'; vc='yellow';
   } else if(cf>=-200 && capRate>=5.5){
     verdict='🟠 WEAK — Only works house-hack or if rents are well below market'; vc='yellow';
   } else {
-    verdict="🔴 PASS — Doesn't pencil with PM at this price. Walk away."; vc='red';
+    verdict="🔴 PASS — Doesn't pencil under the selected management strategy. Walk away."; vc='red';
   }
   html += `<div class="verdict" style="border-color:var(--${vc}-light,#e09a40);color:var(--${vc}-light,#e09a40);">${verdict}</div>`;
 
