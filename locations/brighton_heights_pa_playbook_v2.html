@@ -395,7 +395,7 @@
       <div class="input-row"><label>PM Fee (% of EGI)</label><input type="number" id="pmfee" value="10" oninput="calc()"></div>
       <div class="input-row"><label>Insurance</label><div class="input-with-toggle"><input type="number" id="ins" value="1500" oninput="calc()"><button class="toggle-btn" id="ins-toggle" onclick="toggleIns()">/yr</button></div></div>
       <div class="input-row"><label>Repairs and Maintenance (% gross rent/yr)</label><input type="number" id="capex" value="10" step="0.5" oninput="calc()"></div>
-      <div class="input-row"><label>Other Expenses (% gross rent/yr)</label><input type="number" id="other" value="3" step="0.5" oninput="calc()"></div>
+      <div class="input-row"><label>Other Expenses</label><div class="input-with-toggle"><input type="number" id="other" value="3" step="0.01" oninput="calc()"><button class="toggle-btn" id="other-toggle" onclick="toggleOther()">%</button></div><div class="hint">Toggle % of gross rent or direct monthly dollars</div></div>
       <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">
         <div class="ctc-header">Cash to Close</div>
         <div class="input-row"><label>Closing Costs (% of purchase)</label><input type="number" id="closing_cost" value="6.5" step="0.5" oninput="calc()"></div>
@@ -544,6 +544,7 @@ function showTab(evt, name) {
 }
 
 let insMode = 'yr';
+let otherMode = 'pct';
 
 function setRentDefault() {
   const rents = {duplex:2400, triplex:3225, quad:4800};
@@ -567,6 +568,23 @@ function toggleIns() {
   calc();
 }
 
+function toggleOther() {
+  const btn = document.getElementById('other-toggle');
+  const inp = document.getElementById('other');
+  const rentGross = parseFloat(document.getElementById('rent').value) || 0;
+  const curVal = parseFloat(inp.value) || 0;
+  if (otherMode === 'pct') {
+    otherMode = 'mo';
+    inp.value = Number((rentGross * curVal / 100).toFixed(2));
+    btn.textContent = '$/mo';
+  } else {
+    otherMode = 'pct';
+    inp.value = rentGross > 0 ? Number((curVal / rentGross * 100).toFixed(6)) : 0;
+    btn.textContent = '%';
+  }
+  calc();
+}
+
 function calc() {
   const ptype = document.getElementById('ptype').value;
   const pp = parseFloat(document.getElementById('pp').value) || 0;
@@ -580,8 +598,8 @@ function calc() {
   const insMonthly = insMode === 'yr' ? insRaw / 12 : insRaw;
   const capexPct = parseFloat(document.getElementById('capex').value) || 0;
   const capexMonthly = rentGross * capexPct / 100;
-  const otherPct = parseFloat(document.getElementById('other').value) || 0;
-  const otherMonthly = rentGross * otherPct / 100;
+  const otherInput = parseFloat(document.getElementById('other').value) || 0;
+  const otherMonthly = otherMode === 'pct' ? rentGross * otherInput / 100 : otherInput;
   const closingCostPct = parseFloat(document.getElementById('closing_cost').value) || 6.5;
   const rehab = parseFloat(document.getElementById('rehab').value) || 0;
 
@@ -595,6 +613,7 @@ function calc() {
   const egi = grossIncome * (1 - vacPct / 100);
   const pmFee = egi * pmPct / 100;
   const totalExp = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee;
+  const operatingExpPct = egi > 0 ? totalExp / egi * 100 : 0;
   const noi = egi - totalExp;
   const capRate = pp > 0 ? noi * 12 / pp * 100 : 0;
   const cf = noi - pi;
@@ -621,9 +640,10 @@ function calc() {
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo', c:'good', key:false}] : []),
     {l:'Insurance', v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr', c:'', key:false},
     {l:'Repairs and Maint. (' + capexPct + '%)', v:fmt(capexMonthly) + '/mo', c:'', key:false},
-    {l:'Other Expenses (' + otherPct + '%)', v:fmt(otherMonthly) + '/mo', c:'', key:false},
+    {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
     {l:'PM Fee (' + pmPct + '% of EGI)', v:fmt(pmFee) + '/mo', c:'bad', key:false},
     {l:'Total Monthly Expenses', v:fmt(totalExp) + '/mo', c:'', key:false},
+    {l:'Operating Expense %', v:fmtPct(operatingExpPct) + ' of EGI', c:'', key:true},
     {l:'NOI (before debt service)', v:(noi < 0 ? '-' : '') + fmt(noi) + '/mo', c:cls(noi, 0, -1), key:false},
     {l:'Monthly Cash Flow', v:(cf < 0 ? '-' : '') + fmt(cf) + '/mo', c:cls(cf, 150 * units, 0), key:true},
     {l:'Annual Cash Flow', v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr', c:cls(cf * 12, 1800 * units, 0), key:false},
