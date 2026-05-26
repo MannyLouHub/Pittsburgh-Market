@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bethel Park, PA Investment Playbook v2 - Luminous Steel City Holdings</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --steel:#1a1f2e;--steel-mid:#2c3347;--steel-light:#3d4560;
+    --gold:#c9a84c;--gold-light:#e8c87a;--cream:#f5f0e8;
+    --green:#2d7a4f;--green-light:#3da067;--red:#b84040;
+    --yellow:#c9862a;--text:#e8e4dc;--text-muted:#9a96a0;
+    --border:rgba(201,168,76,0.25);--max-w:1400px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);font-size:16px;line-height:1.5;}
+  a{color:var(--gold-light);}
+  .header{background:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);border-bottom:2px solid var(--gold);padding:24px 28px 20px;position:relative;overflow:hidden;}
+  .header::before{content:'PGH';position:absolute;right:-10px;top:-20px;font-family:'Playfair Display',serif;font-size:120px;font-weight:900;color:rgba(201,168,76,0.05);pointer-events:none;}
+  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;max-width:var(--max-w);margin:0 auto;}
+  .header h1{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--cream);line-height:1.1;}
+  .header h1 span{color:var(--gold);}
+  .header-sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);margin-top:5px;letter-spacing:0.5px;}
+  .header-tags{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px;}
+  .header-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;letter-spacing:0.5px;}
+  .header-tag.green{background:rgba(61,160,103,0.2);color:var(--green-light);}
+  .header-tag.gold{background:rgba(201,168,76,0.15);color:var(--gold-light);}
+  .header-tag.dim{background:rgba(61,69,96,0.6);color:var(--text-muted);}
+  .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+  .badge{background:var(--gold);color:var(--steel);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:3px 8px;letter-spacing:1px;white-space:nowrap;}
+  .badge.alt{background:var(--steel-light);color:var(--text-muted);}
+  .tabs{background:var(--steel-mid);border-bottom:1px solid var(--border);}
+  .tabs-inner{display:flex;max-width:var(--max-w);margin:0 auto;overflow-x:auto;scrollbar-width:none;}
+  .tabs-inner::-webkit-scrollbar{display:none;}
+  .tab{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.8px;padding:11px 15px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;text-transform:uppercase;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,168,76,0.06);}
+  .content{padding:20px 24px;max-width:var(--max-w);margin:0 auto;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .section-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--cream);margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .section-title .dot{width:7px;height:7px;background:var(--gold);border-radius:50%;flex-shrink:0;}
+  .section-title.sm{font-size:15px;margin-top:14px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .card{background:var(--steel-mid);border:1px solid var(--border);padding:14px;position:relative;}
+  .card-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
+  .card-value{font-family:'IBM Plex Mono',monospace;font-size:23px;font-weight:600;color:var(--cream);line-height:1.1;}
+  .card-value.gold{color:var(--gold);}
+  .card-value.green{color:var(--green-light);}
+  .card-value.red{color:#e07070;}
+  .card-sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
+  .card-accent{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold);}
+  .card-accent.green{background:var(--green-light);}
+  .card-accent.red{background:var(--red);}
+  .data-table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:13px;}
+  .data-table th{text-align:left;padding:8px 10px;background:rgba(201,168,76,0.1);color:var(--gold);font-size:11px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+  .data-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text);vertical-align:top;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .data-table td.hl{color:var(--gold-light);font-weight:600;}
+  .data-table td.gr{color:var(--green-light);}
+  .data-table td.rd{color:#e07070;}
+  .data-table td.mu{color:var(--text-muted);}
+  .alert{padding:11px 13px;margin-bottom:13px;font-size:14px;line-height:1.5;border-left:3px solid;background:rgba(0,0,0,0.2);}
+  .alert.green{border-color:var(--green-light);}
+  .alert.yellow{border-color:var(--yellow);}
+  .alert.red{border-color:var(--red);}
+  .alert-title{font-weight:600;margin-bottom:3px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.5px;}
+  .alert.green .alert-title{color:var(--green-light);}
+  .alert.yellow .alert-title{color:#e09a40;}
+  .alert.red .alert-title{color:#e07070;}
+  .flags{display:flex;flex-direction:column;gap:6px;}
+  .flag-row{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:rgba(0,0,0,0.18);}
+  .flag-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+  .flag-text{font-size:14px;line-height:1.5;}
+  .flag-text strong{font-family:'IBM Plex Mono',monospace;font-size:12px;display:block;margin-bottom:2px;letter-spacing:0.3px;}
+  .strategy-card{border:1px solid var(--border);padding:14px;position:relative;overflow:hidden;}
+  .s-stripe{position:absolute;top:0;left:0;right:0;height:3px;}
+  .s-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;}
+  .s-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--cream);margin-bottom:8px;}
+  .s-trigger{font-size:13px;color:var(--text-muted);margin-bottom:6px;}
+  .s-trigger span{color:var(--gold-light);font-weight:500;}
+  .s-metrics{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .s-metrics div{margin-bottom:3px;color:var(--text-muted);}
+  .s-metrics span{color:var(--green-light);}
+  .s-note{font-size:12px;color:#e09a40;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
+  .calc-wrap{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;}
+  .calc-inputs{display:flex;flex-direction:column;gap:8px;}
+  .input-row{display:flex;flex-direction:column;gap:3px;}
+  .input-row label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);}
+  .input-row input,.input-row select{background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:15px;padding:7px 10px;width:100%;outline:none;transition:border 0.2s;}
+  .input-row input:focus,.input-row select:focus{border-color:var(--gold);}
+  .input-row select option{background:var(--steel-mid);}
+  .input-row .hint{font-size:12px;color:var(--text-muted);margin-top:1px;}
+  .calc-results{display:flex;flex-direction:column;gap:6px;}
+  .result-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:rgba(0,0,0,0.22);border-left:2px solid transparent;gap:8px;}
+  .result-row.key{border-left-color:var(--gold);background:rgba(201,168,76,0.06);}
+  .result-label{font-size:13px;color:var(--text-muted);}
+  .result-value{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--cream);text-align:right;}
+  .result-value.good{color:var(--green-light);}
+  .result-value.bad{color:#e07070;}
+  .result-value.warn{color:#e09a40;}
+  .verdict{margin-top:8px;padding:12px;border:1px solid;font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:center;letter-spacing:0.5px;}
+  .pm-note{background:rgba(201,134,42,0.1);border:1px solid rgba(201,134,42,0.3);padding:8px 12px;font-size:13px;color:#e09a40;font-family:'IBM Plex Mono',monospace;margin-bottom:10px;}
+  .price-tier{border:1px solid var(--border);padding:12px 14px;margin-bottom:8px;position:relative;}
+  .price-tier .tier-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+  .price-tier .tier-range{font-family:'Playfair Display',serif;font-size:20px;color:var(--cream);margin-bottom:6px;}
+  .price-tier .tier-verdict{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;letter-spacing:0.5px;margin-bottom:6px;}
+  .price-tier .tier-body{font-size:13px;color:var(--text-muted);line-height:1.6;}
+  .mb-14{margin-bottom:14px;}
+  .mt-14{margin-top:14px;}
+  .note{font-size:12px;color:var(--text-muted);font-style:italic;margin-top:7px;}
+  .toggle-btn{background:var(--steel-light);border:1px solid var(--border);color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px 10px;cursor:pointer;white-space:nowrap;letter-spacing:0.5px;transition:all 0.2s;}
+  .toggle-btn:hover{background:rgba(201,168,76,0.15);border-color:var(--gold);}
+  .input-with-toggle{display:flex;gap:6px;align-items:center;}
+  .input-with-toggle input{flex:1;}
+  .ctc-header{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--gold);margin-bottom:8px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .sources{margin-top:16px;padding:12px 14px;background:rgba(0,0,0,0.18);border:1px solid var(--border);font-size:12px;color:var(--text-muted);}
+  .sources strong{display:block;font-family:'IBM Plex Mono',monospace;color:var(--gold);font-size:11px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:5px;}
+  .sources a{margin-right:12px;white-space:nowrap;}
+  @media(max-width:900px){
+    .grid-4,.grid-3,.grid-2,.calc-wrap{grid-template-columns:1fr;}
+  }
+  @media(max-width:640px){
+    .header{padding:20px 18px;}
+    .content{padding:16px 14px;}
+    .header-top{display:block;}
+    .badges{margin-top:12px;align-items:flex-start;}
+    .header h1{font-size:24px;}
+    .tab{font-size:11px;padding:10px 12px;}
+    .data-table{font-size:11px;display:block;overflow-x:auto;}
+    .card-value{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>BETHEL PARK, PA<br><span>Investment Playbook</span> v2</h1>
+      <div class="header-sub">LUMINOUS STEEL CITY HOLDINGS LLC · SMALL MULTIFAMILY (2–4 UNITS) · 15102 · MAY 2026</div>
+      <div class="header-tags">
+        <span class="header-tag green">$100K–$300K RANGE</span>
+        <span class="header-tag gold">COSMETIC REHAB ONLY</span>
+        <span class="header-tag dim">PM COMPANY MANAGED</span>
+      </div>
+    </div>
+    <div class="badges">
+      <div class="badge">MAY 2026</div>
+      <div class="badge alt">SOURCE-CHECKED</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tabs-inner">
+    <div class="tab active" onclick="showTab(event,'market')">📊 Market</div>
+    <div class="tab" onclick="showTab(event,'rents')">🏠 Rents</div>
+    <div class="tab" onclick="showTab(event,'taxes')">🧾 Taxes</div>
+    <div class="tab" onclick="showTab(event,'strategy')">🎯 Strategy</div>
+    <div class="tab" onclick="showTab(event,'pricing')">💲 Price Tiers</div>
+    <div class="tab" onclick="showTab(event,'calculator')">🔢 Calculator</div>
+    <div class="tab" onclick="showTab(event,'pm')">🏢 PM Guide</div>
+    <div class="tab" onclick="showTab(event,'tenants')">👥 Tenants</div>
+    <div class="tab" onclick="showTab(event,'flags')">🚦 Deal Flags</div>
+    <div class="tab" onclick="showTab(event,'checklist')">✅ Diligence</div>
+  </div>
+</div>
+
+<!-- MARKET -->
+<div class="panel active" id="panel-market">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Bethel Park Municipality — Market Snapshot (2026)</div>
+  <div class="grid-4 mb-14">
+    <div class="card"><div class="card-accent"></div><div class="card-label">Median Sale Price</div><div class="card-value gold">$306K</div><div class="card-sub">-8.0% YoY · Redfin, Mar 2026</div></div>
+    <div class="card"><div class="card-accent green"></div><div class="card-label">Renter Concentration</div><div class="card-value green">24%</div><div class="card-sub">23.6% derived · Census ACS</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">Median Days on Market</div><div class="card-value gold">62 days</div><div class="card-sub">All home types · Mar 2026</div></div>
+    <div class="card"><div class="card-accent red"></div><div class="card-label">Apartment Rent YoY</div><div class="card-value red">-0.6%</div><div class="card-sub">Apartments.com · May 2026</div></div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Location Fundamentals</div>
+      <table class="data-table">
+        <tr><td class="mu">Municipality / County</td><td class="hl">Bethel Park, Allegheny County</td></tr>
+        <tr><td class="mu">ZIP</td><td class="hl">15102</td></tr>
+        <tr><td class="mu">Distance to PGH CBD</td><td>~10 miles south</td></tr>
+        <tr><td class="mu">Population</td><td>32,376 (2024 estimate)</td></tr>
+        <tr><td class="mu">School District</td><td>Bethel Park School District</td></tr>
+        <tr><td class="mu">Owner / Renter Split</td><td>76.4% / 23.6%</td></tr>
+        <tr><td class="mu">Median Home Value</td><td>$273,400 (ACS 2020–2024)</td></tr>
+        <tr><td class="mu">Median Gross Rent</td><td>$1,311 (ACS 2020–2024)</td></tr>
+        <tr><td class="mu">Transit</td><td>PRT light rail service through Bethel Park</td></tr>
+        <tr><td class="mu">Housing Character</td><td>Predominantly owner-occupied suburban market</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Why Bethel Park for Your Strategy</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text"><strong>STRONG RENT CEILING</strong>Published 2BR apartment average of $1,490 supports screening multifamily at a conservative $1,350/unit benchmark.</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text"><strong>COMMUTER ACCESS</strong>Light rail service and a south-suburban location support tenants commuting toward Pittsburgh employment centers.</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text"><strong>ENTRY PRICE PRESSURE</strong>The $306K all-home median sits above your acquisition cap; suitable 2–4 unit purchases inside $300K may be limited.</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text"><strong>SMALLER RENTER POOL</strong>Approximately 24% renter occupancy is meaningfully lower than a renter-heavy cash-flow market; verify leasing demand at the subject property.</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text"><strong>PM MUST REMAIN IN MODEL</strong>The 9% PM assumption and verified parcel taxes determine whether higher suburban rents create actual cash flow.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sources">
+    <strong>Sources / As of May 25, 2026</strong>
+    <a href="https://www.redfin.com/city/1606/PA/Bethel-Park/housing-market" target="_blank" rel="noopener">Redfin housing market</a>
+    <a href="https://www.census.gov/quickfacts/fact/table/bethelparkmunicipalitypennsylvania/HSD310217" target="_blank" rel="noopener">Census QuickFacts</a>
+    <a href="https://www.apartments.com/local-guide/bethel-park-pa/" target="_blank" rel="noopener">Apartments.com area guide</a>
+    <a href="https://alleghenycountytreasurer.us/real-estate-tax/local-and-school-district-tax-millage/" target="_blank" rel="noopener">Treasurer millage data</a>
+    <a href="https://www.alleghenycounty.us/Services/Property-Assessments-and-Real-Estate/Appeals/Board-of-Property-Assessment-Appeals-and-Review-BPAAR" target="_blank" rel="noopener">BPAAR / CLR</a>
+    <a href="https://www.achsng.com/deptHCVP.asp" target="_blank" rel="noopener">ACHA HCV program</a>
+  </div>
+</div>
+</div>
+
+<!-- RENTS -->
+<div class="panel" id="panel-rents">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Bethel Park Rent Schedule — Conservative Underwriting Benchmarks</div>
+  <table class="data-table mb-14">
+    <thead><tr><th>Unit Type</th><th>Published Avg Rent</th><th>Underwrite At</th><th>Margin Below Published</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="hl">Studio</td><td>$933</td><td class="gr">$850</td><td>-$83</td><td class="mu">Screen only; limited small multifamily relevance</td></tr>
+      <tr><td class="hl">1 BR / 1 BA</td><td>$1,205</td><td class="gr">$1,075</td><td>-$130</td><td class="mu">Triplex mixed-unit model assumption</td></tr>
+      <tr><td class="hl">2 BR / 1 BA</td><td>$1,490</td><td class="gr">$1,350</td><td>-$140</td><td class="mu">Core duplex/quad assumption</td></tr>
+      <tr><td class="hl">3 BR</td><td>$1,745</td><td class="gr">$1,550</td><td>-$195</td><td class="mu">Verify condition and utility allocation before use</td></tr>
+    </tbody>
+  </table>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">UNDERWRITING BASIS</div>
+    Published averages are apartment-market reference points, not guarantees for an individual 2–4 unit property. The model intentionally underwrites below the May 2026 Apartments.com averages and still requires subject-property rent comps.
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Duplex (2 × 2BR) — Base Case EGI</div>
+      <table class="data-table">
+        <tr><td class="mu">Gross Potential Rent</td><td class="hl">$2,700/mo · $32,400/yr</td></tr>
+        <tr><td class="mu">Vacancy (8%)</td><td class="rd">-$216/mo</td></tr>
+        <tr><td class="mu">Effective Gross Income</td><td class="gr">$2,484/mo · $29,808/yr</td></tr>
+        <tr><td class="mu">PM Fee (9% of EGI)</td><td class="rd">-$224/mo · -$2,683/yr</td></tr>
+        <tr><td class="mu">EGI After PM</td><td class="gr">$2,260/mo · $27,125/yr</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Triplex (2 × 2BR + 1 × 1BR) — Base Case EGI</div>
+      <table class="data-table">
+        <tr><td class="mu">Gross Potential Rent</td><td class="hl">$3,775/mo · $45,300/yr</td></tr>
+        <tr><td class="mu">Vacancy (8%)</td><td class="rd">-$302/mo</td></tr>
+        <tr><td class="mu">Effective Gross Income</td><td class="gr">$3,473/mo · $41,676/yr</td></tr>
+        <tr><td class="mu">PM Fee (9% of EGI)</td><td class="rd">-$313/mo · -$3,751/yr</td></tr>
+        <tr><td class="mu">EGI After PM</td><td class="gr">$3,160/mo · $37,925/yr</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAXES -->
+<div class="panel" id="panel-taxes">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Bethel Park Tax Structure — Modeled Assessment Inputs</div>
+  <div class="grid-3 mb-14">
+    <div class="card"><div class="card-accent"></div><div class="card-label">Municipal Millage</div><div class="card-value gold">4.13</div><div class="card-sub">mills · Bethel Park (2026)</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">School District Millage</div><div class="card-value gold">27.3263</div><div class="card-sub">mills · BPSD (2025–2026 latest published)</div></div>
+    <div class="card"><div class="card-accent"></div><div class="card-label">County Millage</div><div class="card-value gold">6.43</div><div class="card-sub">mills · Allegheny County (2026)</div></div>
+  </div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">ASSESSMENT MODEL — VERIFY THE PARCEL TAX BILL</div>
+    The calculator estimates an appeal-adjusted tax basis using Allegheny County's 2026 CLR of <strong>50.14%</strong> and combined modeled millage of <strong>37.8863</strong> mills. Buying a property does not automatically set its assessment to this value. Pull the certified assessment and actual bills before making an offer.
+  </div>
+  <div class="section-title sm"><div class="dot"></div>Modeled Tax Estimates Across Your Price Range</div>
+  <table class="data-table mb-14">
+    <thead><tr><th>Purchase Price</th><th>CLR-Modeled Assessment</th><th>Est. Annual Tax</th><th>Est. Monthly Tax</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>$110,000</td><td>$55,154</td><td class="gr">$2,090/yr</td><td class="gr">$174/mo</td><td class="mu">Screening estimate only</td></tr>
+      <tr><td>$140,000</td><td>$70,196</td><td class="gr">$2,659/yr</td><td class="gr">$222/mo</td><td class="mu">Screening estimate only</td></tr>
+      <tr><td>$165,000</td><td>$82,731</td><td>$3,134/yr</td><td>$261/mo</td><td class="mu">Screening estimate only</td></tr>
+      <tr><td>$185,000</td><td>$92,759</td><td>$3,514/yr</td><td>$293/mo</td><td class="mu">Screening estimate only</td></tr>
+      <tr><td>$200,000</td><td>$100,280</td><td class="hl">$3,799/yr</td><td class="hl">$317/mo</td><td class="mu">Analyzer validation case</td></tr>
+      <tr><td>$215,000</td><td>$107,801</td><td>$4,084/yr</td><td>$340/mo</td><td class="mu">Verify parcel bills</td></tr>
+      <tr><td>$250,000</td><td>$125,350</td><td class="rd">$4,749/yr</td><td class="rd">$396/mo</td><td class="mu">Verify parcel bills</td></tr>
+      <tr><td>$300,000</td><td>$150,420</td><td class="rd">$5,699/yr</td><td class="rd">$475/mo</td><td class="mu">Verify parcel bills</td></tr>
+    </tbody>
+  </table>
+  <div class="grid-2">
+    <div class="alert green">
+      <div class="alert-title">PRE-OFFER REQUIREMENT</div>
+      Retrieve the parcel record, current assessed value, and municipal/school/county bills. Model both the actual tax burden and the CLR-adjusted assessment scenario when exposure to an appeal exists.
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Other Tax Obligations</div>
+      <table class="data-table">
+        <tr><td class="mu">Rental-income taxation</td><td>Review PA and federal treatment with CPA</td></tr>
+        <tr><td class="mu">Entity treatment</td><td>Confirm LLC elections and reporting with CPA</td></tr>
+        <tr><td class="mu">Transfer tax at purchase</td><td>Verify total rate in closing estimate</td></tr>
+        <tr><td class="mu">Tax collection contact</td><td>Confirm current collector on municipality/county notice</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- STRATEGY -->
+<div class="panel" id="panel-strategy">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>3-Strategy Framework — Calibrated to Your Parameters</div>
+  <div class="grid-3 mb-14">
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:var(--green-light);"></div>
+      <div class="s-label">Strategy 1 — Primary</div>
+      <div class="s-title">Buy &amp; Hold</div>
+      <div class="s-trigger">Trigger: <span>Duplex near or below $210K</span>, or a higher-unit deal that pencils with PM</div>
+      <div class="s-metrics">
+        <div>Min Cap Rate: <span>8%+ (PM-adjusted)</span></div>
+        <div>Min CoC: <span>7%+ after PM</span></div>
+        <div>Rehab: <span>Cosmetic only</span></div>
+        <div>Financing: <span>DSCR or conventional</span></div>
+        <div>DSCR Min: <span>1.20×</span></div>
+        <div>Target Cash Flow: <span>$150+/mo/unit</span></div>
+      </div>
+      <div class="s-note">At the modeled duplex rents, a $200K screening case produces about $322/mo cash flow and 1.28× DSCR before any property-specific adjustment.</div>
+    </div>
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:var(--gold);"></div>
+      <div class="s-label">Strategy 2 — Selective</div>
+      <div class="s-title">House Hack</div>
+      <div class="s-trigger">Trigger: <span>Higher-priced duplex</span> where owner occupancy improves financing options</div>
+      <div class="s-metrics">
+        <div>Down Payment: <span>Owner-occupant program dependent</span></div>
+        <div>Rent Basis: <span>$1,350/unit screening case</span></div>
+        <div>Rehab: <span>Cosmetic only</span></div>
+        <div>PM Exit: <span>Model future 9% fee</span></div>
+        <div>Taxes: <span>Verify actual assessment</span></div>
+      </div>
+      <div class="s-note">Do not call an owner-occupied purchase a portfolio win unless it cash-flows after moving out and engaging a PM.</div>
+    </div>
+    <div class="strategy-card">
+      <div class="s-stripe" style="background:#7a9fd4;"></div>
+      <div class="s-label">Strategy 3 — Opportunistic</div>
+      <div class="s-title">BRRRR (Cosmetic Edition)</div>
+      <div class="s-trigger">Trigger: <span>Below-market acquisition</span> with inspection-confirmed cosmetic scope</div>
+      <div class="s-metrics">
+        <div>Value Support: <span>Document sales comps</span></div>
+        <div>Rent Support: <span>Document lease comps</span></div>
+        <div>Max Rehab: <span>$15K–$25K cosmetic</span></div>
+        <div>Refi Check: <span>PM-adjusted DSCR</span></div>
+        <div>Taxes: <span>Stress-test assessment</span></div>
+      </div>
+      <div class="s-note">The all-home median exceeds the target acquisition range, so distressed multifamily availability must be proven, not assumed.</div>
+    </div>
+  </div>
+  <div class="alert yellow">
+    <div class="alert-title">THE PM REALITY CHECK</div>
+    Bethel Park's higher published rents improve revenue potential, but the market's higher prices and a smaller renter share leave little room for optimistic assumptions. Keep the PM fee, vacancy, repairs, and assessment verification in every offer model.
+  </div>
+</div>
+</div>
+
+<!-- PRICE TIERS -->
+<div class="panel" id="panel-pricing">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Purchase Price Tier Guide — PM-Adjusted, Bethel Park 2–4 Units</div>
+  <div class="alert yellow mb-14">
+    <div class="alert-title">MODEL BASIS</div>
+    Screening cases assume 20% down, 7.75% interest, 9% PM of EGI, 8% vacancy, 10% repairs, 3% other expenses, $1,500 annual insurance, CLR-modeled taxes, and duplex GPR of $2,700/mo.
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:var(--green-light);">TIER 1 — EXCEPTIONAL SCREEN</div>
+    <div class="tier-range">$100,000 – $185,000</div>
+    <div class="tier-verdict" style="background:rgba(45,122,79,0.2);color:var(--green-light);">🟢 STRONG MODEL OUTPUT IF CONDITION IS REAL</div>
+    <div class="tier-body">A duplex at $185K generates about $431/mo cash flow, 9.68% cap rate, and 1.41× DSCR in the base model. Because this range is well below the broader Bethel Park sales market, verify unit legality, systems, leases, and deferred maintenance before relying on the output.</div>
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:var(--gold);">TIER 2 — DUPLEX TARGET RANGE</div>
+    <div class="tier-range">$185,000 – $210,000</div>
+    <div class="tier-verdict" style="background:rgba(201,168,76,0.15);color:var(--gold-light);">🟡 BUY IF RENTS AND TAXES VERIFY</div>
+    <div class="tier-body">The $200K validation case generates approximately $322/mo, 8.81% cap rate, and 1.28× DSCR. At $210K the modeled duplex remains above 8% cap and near the DSCR floor. Any rent concession, utility burden, or higher actual tax bill can erase the margin.</div>
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:#e09a40;">TIER 3 — THREE-UNIT PREFERENCE</div>
+    <div class="tier-range">$210,000 – $260,000</div>
+    <div class="tier-verdict" style="background:rgba(201,134,42,0.15);color:#e09a40;">🟡 DUPLEX MARGIN THINS — SEEK 3+ UNITS</div>
+    <div class="tier-body">At $240K the modeled duplex falls to about $29/mo cash flow and 1.02× DSCR, and at $260K it turns negative. Require documented income above the screening case or shift focus to legal triplex/quad opportunities.</div>
+  </div>
+  <div class="price-tier">
+    <div class="tier-label" style="color:#e07070;">TIER 4 — HIGH DILIGENCE</div>
+    <div class="tier-range">$260,000 – $300,000</div>
+    <div class="tier-verdict" style="background:rgba(184,64,64,0.15);color:#e07070;">🔴 NO STANDARD DUPLEX ACQUISITION</div>
+    <div class="tier-body">A $300K duplex is materially negative under the conservative rent model. A triplex at the modeled $3,775 GPR reaches approximately 8.28% cap and 1.20× DSCR at $300K, but only after leases, legal unit count, operating costs, and taxes are verified.</div>
+  </div>
+</div>
+</div>
+
+<!-- CALCULATOR -->
+<div class="panel" id="panel-calculator">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Bethel Park Deal Analyzer — PM-Adjusted</div>
+  <div class="pm-note">📌 Taxes are a screening estimate: purchase price × 50.14% CLR × 37.8863 mills. Verify the actual parcel assessment and tax bills before offering.</div>
+  <div class="calc-wrap">
+    <div class="calc-inputs">
+      <div class="input-row">
+        <label>Property Type</label>
+        <select id="ptype" onchange="setRentDefault()">
+          <option value="duplex">Duplex (2 units)</option>
+          <option value="triplex">Triplex (3 units)</option>
+          <option value="quad">Quad (4 units)</option>
+        </select>
+      </div>
+      <div class="input-row">
+        <label>Purchase Price ($)</label>
+        <input type="number" id="pp" value="200000" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Down Payment (%)</label>
+        <input type="number" id="dp" value="20" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Interest Rate (%)</label>
+        <input type="number" id="rate" value="7.75" step="0.25" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Monthly Gross Rent ($)</label>
+        <input type="number" id="rent" value="2700" oninput="calc()">
+        <div class="hint">Preset: Duplex $2,700 · Triplex $3,775 · Quad $5,400</div>
+      </div>
+      <div class="input-row">
+        <label>Other Monthly Income ($)</label>
+        <input type="number" id="other_income" value="0" oninput="calc()">
+        <div class="hint">Laundry, parking, storage, pet fees, etc.</div>
+      </div>
+      <div class="input-row">
+        <label>Vacancy Rate (%)</label>
+        <input type="number" id="vac" value="8" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>PM Fee (% of EGI)</label>
+        <input type="number" id="pmfee" value="9" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Insurance</label>
+        <div class="input-with-toggle">
+          <input type="number" id="ins" value="1500" oninput="calc()">
+          <button class="toggle-btn" id="ins-toggle" onclick="toggleIns()">/yr</button>
+        </div>
+      </div>
+      <div class="input-row">
+        <label>Repairs &amp; Maintenance (% gross rent/yr)</label>
+        <input type="number" id="capex" value="10" step="0.5" oninput="calc()">
+      </div>
+      <div class="input-row">
+        <label>Other Expenses (% gross rent/yr)</label>
+        <input type="number" id="other" value="3" step="0.5" oninput="calc()">
+      </div>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">
+        <div class="ctc-header">Cash to Close</div>
+        <div class="input-row">
+          <label>Closing Costs (% of purchase)</label>
+          <input type="number" id="closing_cost" value="6.5" step="0.5" oninput="calc()">
+        </div>
+        <div class="input-row">
+          <label>Rehab Budget ($)</label>
+          <input type="number" id="rehab" value="0" oninput="calc()">
+          <div class="hint">Cosmetic-only model: inspect before setting budget.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="calc-results" id="results"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PM GUIDE -->
+<div class="panel" id="panel-pm">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Property Management — Bethel Park / South Hills Guide</div>
+  <div class="grid-2 mb-14">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Underwriting Assumptions to Confirm</div>
+      <table class="data-table">
+        <tr><td class="mu">Management Fee Model</td><td class="hl">9% of collected effective income</td></tr>
+        <tr><td class="mu">Vacancy Model</td><td>8% of potential gross income</td></tr>
+        <tr><td class="mu">Repairs Reserve</td><td>10% of gross rent</td></tr>
+        <tr><td class="mu">Other Operating Expense</td><td>3% of gross rent</td></tr>
+        <tr><td class="mu">Lease Placement</td><td>Obtain fee schedule before offer</td></tr>
+        <tr><td class="mu">Maintenance Approval Limit</td><td>Set threshold in management agreement</td></tr>
+        <tr><td class="mu">Inspection Process</td><td>Require unit and exterior documentation</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>PM Interview Questions</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">How many 2–4 unit properties do you manage in 15102 and the South Hills?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">What executed lease comps support a Bethel Park 2BR rent assumption?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">What vacancy and turnover period do you see in comparable units?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">Do you handle Allegheny County Housing Authority voucher inspections and documentation?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">What are placement, renewal, inspection, maintenance, and termination fees?</div></div>
+        <div class="flag-row"><div class="flag-icon">❓</div><div class="flag-text">How will deposits, owner statements, work orders, and approvals be documented?</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="alert yellow">
+      <div class="alert-title">MODEL PM AS PERMANENT</div>
+      Every displayed scenario assumes professional management remains part of the operating model. Replace the 9% placeholder with an executed proposal before underwriting a final offer.
+    </div>
+    <div class="alert green">
+      <div class="alert-title">HCV / VOUCHER JURISDICTION</div>
+      Bethel Park falls within the Allegheny County Housing Authority service area. Ask ACHA or an experienced PM for current payment standards and inspection requirements; no voucher rent premium is assumed in this playbook.
+    </div>
+  </div>
+  <div class="section-title sm"><div class="dot"></div>Annual PM Fee Impact — Screening Model</div>
+  <table class="data-table">
+    <thead><tr><th>Property Type</th><th>Monthly GPR</th><th>EGI After 8% Vacancy</th><th>PM @ 9% of EGI</th><th>Annual PM Fee</th></tr></thead>
+    <tbody>
+      <tr><td>Duplex (2BR / 2BR)</td><td>$2,700</td><td>$2,484</td><td class="rd">$224/mo</td><td class="rd">$2,683/yr</td></tr>
+      <tr><td>Triplex (2BR / 2BR / 1BR)</td><td>$3,775</td><td>$3,473</td><td class="rd">$313/mo</td><td class="rd">$3,751/yr</td></tr>
+      <tr><td>Quadplex (4 × 2BR)</td><td>$5,400</td><td>$4,968</td><td class="rd">$447/mo</td><td class="rd">$5,365/yr</td></tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<!-- TENANTS -->
+<div class="panel" id="panel-tenants">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Tenant Profile — Bethel Park Municipality</div>
+  <div class="grid-2 mb-14">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Demand Context</div>
+      <table class="data-table">
+        <tr><td class="mu">Renter-Occupied Share</td><td class="hl">23.6% (ACS 2020–2024)</td></tr>
+        <tr><td class="mu">Median Gross Rent</td><td>$1,311 (ACS 2020–2024)</td></tr>
+        <tr><td class="mu">2BR Published Average</td><td class="hl">$1,490 (May 2026)</td></tr>
+        <tr><td class="mu">2BR Underwriting Rent</td><td class="gr">$1,350</td></tr>
+        <tr><td class="mu">3× Income for Modeled 2BR</td><td>$48,600/yr household income</td></tr>
+        <tr><td class="mu">Transit</td><td>PRT light rail stations in municipality</td></tr>
+        <tr><td class="mu">Community Anchors</td><td>Bethel Park Shopping Center, parks, South Hills access</td></tr>
+        <tr><td class="mu">Demand Limitation</td><td>Owner-heavy community; verify unit-level leasing history</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>PM-Managed Leasing Controls</div>
+      <table class="data-table">
+        <thead><tr><th>Control</th><th>Required Evidence</th></tr></thead>
+        <tbody>
+          <tr><td class="mu">Rent target</td><td>Recent comparable executed leases</td></tr>
+          <tr><td class="mu">Income qualification</td><td>Written, consistently applied policy</td></tr>
+          <tr><td class="mu">Rental history</td><td>Verified references and payment history</td></tr>
+          <tr><td class="mu">Screening compliance</td><td>Fair-housing-compliant PM process</td></tr>
+          <tr><td class="mu">Voucher applicant</td><td>ACHA process and unit inspection readiness</td></tr>
+          <tr><td class="mu">Utility responsibility</td><td>Lease and meter verification</td></tr>
+        </tbody>
+      </table>
+      <div class="alert green" style="margin-top:10px;">
+        <div class="alert-title">ACHA VERIFICATION REQUIRED</div>
+        The Allegheny County Housing Authority administers Housing Choice Vouchers in the county jurisdiction. Obtain current ACHA standards and utility allowances directly before incorporating voucher rent into a pro forma.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- FLAGS -->
+<div class="panel" id="panel-flags">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Deal Flags — Green / Yellow / Red (PM + Cosmetic Calibrated)</div>
+  <div class="grid-3">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:1px;color:var(--green-light);margin-bottom:8px;padding:5px 10px;background:rgba(45,122,79,0.15);">🟢 GREEN FLAGS — BUY SIGNAL</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Legal duplex near or below $210K meeting the PM-adjusted thresholds</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Cap rate 8%+ and DSCR 1.20×+ using verified taxes and leases</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Separate gas/electric meters and clear utility obligations</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Light-rail-accessible location supported by actual tenant demand</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Cosmetic-only scope confirmed by inspection and contractor pricing</div></div>
+        <div class="flag-row"><div class="flag-icon">✅</div><div class="flag-text">Current rent roll is at or near conservative underwritten rents</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:1px;color:#e09a40;margin-bottom:8px;padding:5px 10px;background:rgba(201,134,42,0.15);">🟡 YELLOW FLAGS — VERIFY OR REPRICE</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Duplex above $210K without signed rents above the screening baseline</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Tax model relies on CLR estimate without actual parcel tax records</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Owner-paid utilities or shared mechanical systems</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Listed rents referenced without executed lease comps</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Below-market tenant rents requiring a realistic transition schedule</div></div>
+        <div class="flag-row"><div class="flag-icon">⚠️</div><div class="flag-text">Limited evidence of multifamily availability in the price band</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:1px;color:#e07070;margin-bottom:8px;padding:5px 10px;background:rgba(184,64,64,0.15);">🔴 RED FLAGS — WALK AWAY</div>
+      <div class="flags">
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Unpermitted unit conversion or zoning conflict</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Structural, roof, sewer, HVAC, or electrical replacement outside cosmetic scope</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Material tax bill omitted from seller operating statements</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Negative cash flow with PM under verified rents and expenses</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Duplex approaching $300K without a defensible alternative strategy</div></div>
+        <div class="flag-row"><div class="flag-icon">🚫</div><div class="flag-text">Code violations, liens, or occupancy problems unresolved before close</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="panel" id="panel-checklist">
+<div class="content">
+  <div class="section-title"><div class="dot"></div>Due Diligence Checklist — Bethel Park Multifamily</div>
+  <div class="grid-2">
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Pre-Offer</div>
+      <div id="pre-offer"></div>
+      <div class="section-title sm"><div class="dot"></div>Physical Inspection</div>
+      <div id="physical"></div>
+    </div>
+    <div>
+      <div class="section-title sm"><div class="dot"></div>Financial &amp; Legal</div>
+      <div id="financial"></div>
+      <div class="section-title sm"><div class="dot"></div>Closing &amp; Post-Close</div>
+      <div id="closing"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function showTab(evt, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  evt.currentTarget.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+let insMode = 'yr';
+
+function setRentDefault() {
+  const rents = {duplex:2700, triplex:3775, quad:5400};
+  document.getElementById('rent').value = rents[document.getElementById('ptype').value];
+  calc();
+}
+
+function toggleIns() {
+  const btn = document.getElementById('ins-toggle');
+  const inp = document.getElementById('ins');
+  const curVal = parseFloat(inp.value) || 0;
+  if (insMode === 'yr') {
+    insMode = 'mo';
+    inp.value = Math.round(curVal / 12);
+    btn.textContent = '/mo';
+  } else {
+    insMode = 'yr';
+    inp.value = Math.round(curVal * 12);
+    btn.textContent = '/yr';
+  }
+  calc();
+}
+
+function calc() {
+  const ptype = document.getElementById('ptype').value;
+  const pp = parseFloat(document.getElementById('pp').value) || 0;
+  const dpPct = parseFloat(document.getElementById('dp').value) || 20;
+  const rate = parseFloat(document.getElementById('rate').value) || 7.75;
+  const rentGross = parseFloat(document.getElementById('rent').value) || 0;
+  const otherIncome = parseFloat(document.getElementById('other_income').value) || 0;
+  const vacPct = parseFloat(document.getElementById('vac').value) || 8;
+  const pmPct = parseFloat(document.getElementById('pmfee').value) || 9;
+  const insRaw = parseFloat(document.getElementById('ins').value) || 0;
+  const insMonthly = insMode === 'yr' ? insRaw / 12 : insRaw;
+  const capexPct = parseFloat(document.getElementById('capex').value) || 0;
+  const capexMonthly = rentGross * capexPct / 100;
+  const otherPct = parseFloat(document.getElementById('other').value) || 0;
+  const otherMonthly = rentGross * otherPct / 100;
+  const closingCostPct = parseFloat(document.getElementById('closing_cost').value) || 6.5;
+  const rehab = parseFloat(document.getElementById('rehab').value) || 0;
+
+  const dp = pp * dpPct / 100;
+  const loan = pp - dp;
+  const mr = rate / 100 / 12;
+  const pi = mr > 0 ? loan * (mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1) : loan / 360;
+
+  const assessedVal = pp * 0.5014;
+  const monthlyTax = assessedVal * 0.0378863 / 12;
+
+  const grossIncome = rentGross + otherIncome;
+  const egi = grossIncome * (1 - vacPct / 100);
+  const pmFee = egi * pmPct / 100;
+  const totalExp = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee;
+  const noi = egi - totalExp;
+  const capRate = pp > 0 ? noi * 12 / pp * 100 : 0;
+  const cf = noi - pi;
+
+  const closingCostAmt = pp * closingCostPct / 100;
+  const cashToClose = dp + closingCostAmt + rehab;
+  const coc = cashToClose > 0 ? cf * 12 / cashToClose * 100 : 0;
+  const dscr = pi > 0 ? noi / pi : 0;
+  const grm = rentGross > 0 ? pp / (rentGross * 12) : 0;
+  const units = ptype === 'duplex' ? 2 : ptype === 'triplex' ? 3 : 4;
+  const pricePerUnit = units ? pp / units : 0;
+
+  function fmt(n) { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); }
+  function fmtPct(n) { return n.toFixed(2) + '%'; }
+  function cls(v, good, warn) { return v >= good ? 'good' : v >= warn ? 'warn' : 'bad'; }
+
+  const insAnnual = insMode === 'yr' ? insRaw : insRaw * 12;
+  const rows = [
+    {l:'Purchase Price', v:fmt(pp), c:'', key:false},
+    {l:'Down Payment (' + dpPct + '%)', v:fmt(dp), c:'', key:false},
+    {l:'Loan Amount', v:fmt(loan), c:'', key:false},
+    {l:'Monthly P&amp;I', v:fmt(pi) + '/mo', c:'', key:false},
+    {l:'Tax Estimate (CLR-modeled)', v:fmt(monthlyTax) + '/mo', c:'', key:false},
+    ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo', c:'good', key:false}] : []),
+    {l:'Insurance', v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr', c:'', key:false},
+    {l:'Repairs &amp; Maint. (' + capexPct + '%)', v:fmt(capexMonthly) + '/mo', c:'', key:false},
+    {l:'Other Expenses (' + otherPct + '%)', v:fmt(otherMonthly) + '/mo', c:'', key:false},
+    {l:'PM Fee (' + pmPct + '% of EGI)', v:fmt(pmFee) + '/mo', c:'bad', key:false},
+    {l:'Total Monthly Expenses', v:fmt(totalExp) + '/mo', c:'', key:false},
+    {l:'NOI (before debt service)', v:(noi < 0 ? '-' : '') + fmt(noi) + '/mo', c:cls(noi, 0, -1), key:false},
+    {l:'Monthly Cash Flow', v:(cf < 0 ? '-' : '') + fmt(cf) + '/mo', c:cls(cf, 150 * units, 0), key:true},
+    {l:'Annual Cash Flow', v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr', c:cls(cf * 12, 1800 * units, 0), key:false},
+    {l:'Cap Rate (PM-adjusted)', v:fmtPct(capRate), c:cls(capRate, 8, 6.5), key:true},
+    {l:'Cash-on-Cash Return', v:fmtPct(coc), c:cls(coc, 7, 4), key:true},
+    {l:'DSCR', v:dscr.toFixed(2) + 'x', c:cls(dscr, 1.2, 1.0), key:true},
+    {l:'Price Per Unit', v:fmt(pricePerUnit), c:'', key:false},
+    {l:'Gross Rent Multiplier', v:grm.toFixed(1) + 'x (target ≤10)', c:grm <= 10 ? 'good' : grm <= 12 ? 'warn' : 'bad', key:false}
+  ];
+
+  let html = rows.map(r => `<div class="result-row${r.key ? ' key' : ''}"><span class="result-label">${r.l}</span><span class="result-value ${r.c}">${r.v}</span></div>`).join('');
+  let verdict = '', color = '';
+  if (capRate >= 8 && coc >= 7 && dscr >= 1.2 && cf >= 150 * units) {
+    verdict = '🟢 STRONG DEAL — Meets PM-adjusted Bethel Park benchmarks';
+    color = 'var(--green-light)';
+  } else if (capRate >= 6.5 && dscr >= 1.0 && cf > 0) {
+    verdict = '🟡 MARGINAL — Verify rent and tax upside before proceeding';
+    color = '#e09a40';
+  } else if (cf >= -200 && capRate >= 5.5) {
+    verdict = '🟠 WEAK — Requires a different strategy or documented income upside';
+    color = '#e09a40';
+  } else {
+    verdict = "🔴 PASS — Does not pencil with PM at these inputs";
+    color = '#e07070';
+  }
+  html += `<div class="verdict" style="border-color:${color};color:${color};">${verdict}</div>`;
+  html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+    <div class="ctc-header">Cash to Close</div>
+    <div class="result-row"><span class="result-label">Down Payment (${dpPct}%)</span><span class="result-value">${fmt(dp)}</span></div>
+    <div class="result-row"><span class="result-label">Closing Costs (${closingCostPct}%)</span><span class="result-value">${fmt(closingCostAmt)}</span></div>
+    ${rehab > 0 ? `<div class="result-row"><span class="result-label">Rehab Budget</span><span class="result-value">${fmt(rehab)}</span></div>` : ''}
+    <div class="result-row key"><span class="result-label">Total Cash to Close</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
+    <div class="note">CoC return uses down payment + closing costs + rehabilitation budget.</div>
+  </div>`;
+  document.getElementById('results').innerHTML = html;
+}
+
+function buildChecklist(id, items) {
+  document.getElementById(id).innerHTML = items.map(item => `
+    <div class="flag-row" style="margin-bottom:4px;cursor:pointer;" onclick="toggleCheck(this)">
+      <div class="flag-icon" style="font-size:15px;">⬜</div>
+      <div class="flag-text" style="font-size:13px;">${item}</div>
+    </div>`).join('');
+}
+
+function toggleCheck(el) {
+  const icon = el.querySelector('.flag-icon');
+  icon.textContent = icon.textContent === '⬜' ? '✅' : '⬜';
+}
+
+buildChecklist('pre-offer', [
+  'Pull Allegheny County parcel record, assessed value, and current tax bills',
+  'Model taxes using actual bills and the CLR-modeled 50.14% × 37.8863 mill screening case',
+  'Check Bethel Park for open code, occupancy, and permit issues',
+  'Verify zoning and recorded legal unit count for 2–4 residential units',
+  'Pull recent Bethel Park multifamily sale and executed rent comps',
+  'Run PM-adjusted analyzer with conservative rents and actual utility burden',
+  'Confirm purchase scope stays cosmetic-only after initial contractor review'
+]);
+
+buildChecklist('physical', [
+  'Licensed PA home inspection with multifamily scope',
+  'Roof, foundation, basement water, grading, and drainage review',
+  'Electrical panels, wiring condition, service capacity, and meter separation',
+  'Sewer/plumbing scope and water-line condition appropriate to building age',
+  'HVAC and water heater ages, service records, and utility responsibility',
+  'Windows, insulation, parking, exterior condition, and light-rail access walk',
+  'Contractor bid confirms cosmetic-only rehabilitation budget'
+]);
+
+buildChecklist('financial', [
+  'Request rent roll, leases, deposit records, delinquency and turnover history',
+  'Obtain 12 months utility statements for landlord-paid services',
+  'Verify tax bills against seller operating statements and title work',
+  'Obtain insurance and PM proposals before final underwriting',
+  'Verify all screening and leasing processes comply with applicable law',
+  'If considering vouchers, request current ACHA standards and inspection rules',
+  'Run DSCR, cap rate, and CoC using verified income and expenses'
+]);
+
+buildChecklist('closing', [
+  'Resolve liens, code matters, permit issues, and occupancy discrepancies',
+  'Assign leases and transfer deposits at closing',
+  'Execute PM agreement and tenant communications plan',
+  'Confirm utility account transitions and responsibility by unit',
+  'Fund repairs/CapEx reserve and schedule immediate cosmetic work',
+  'Review actual tax exposure after close and calendar any appeal deadlines'
+]);
+
+calc();
+</script>
+</body>
+</html>
