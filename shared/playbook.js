@@ -17,6 +17,14 @@
  * <script> block with location-specific checklist data.
  */
 
+/* ─── Back-to-hub nav (injected on every playbook page) ──────── */
+(function () {
+  const nav = document.createElement('div');
+  nav.className = 'back-nav';
+  nav.innerHTML = '<a href="../index.html">← Market Hub</a>';
+  document.body.insertBefore(nav, document.body.firstChild);
+})();
+
 let insMode   = 'yr';
 let otherMode = 'pct';
 let pmManaged = true;

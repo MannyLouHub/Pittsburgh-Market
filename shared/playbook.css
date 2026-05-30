@@ -13,6 +13,11 @@
   --border:rgba(201,168,76,0.25);--max-w:1400px;
 }
 
+/* ─── Back nav ──────────────────────────────────────────────── */
+.back-nav{background:var(--steel);border-bottom:1px solid var(--border);padding:8px 28px;}
+.back-nav a{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.5px;}
+.back-nav a:hover{color:var(--gold);}
+
 /* ─── Reset & Base ─────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);font-size:16px;line-height:1.5;}
