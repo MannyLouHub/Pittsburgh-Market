@@ -17,12 +17,34 @@
  * <script> block with location-specific checklist data.
  */
 
-/* ─── Back-to-hub nav (injected on every playbook page) ──────── */
+/* ─── Back-to-hub nav + Loan Type field (injected on every page) */
 (function () {
+  // Back nav
   const nav = document.createElement('div');
   nav.className = 'back-nav';
   nav.innerHTML = '<a href="../index.html">← Market Hub</a>';
   document.body.insertBefore(nav, document.body.firstChild);
+
+  // Loan type selector — injected between Down Payment and Interest Rate
+  const dpInput = document.getElementById('dp');
+  if (dpInput) {
+    const dpRow = dpInput.closest('.input-row');
+    if (dpRow) {
+      const row = document.createElement('div');
+      row.className = 'input-row';
+      row.innerHTML =
+        '<label>Loan Type</label>' +
+        '<select id="loan_type" onchange="updateLoanType()">' +
+          '<option value="conv20">Conventional — 20%+ down (No PMI)</option>' +
+          '<option value="conv5">Conventional — &lt;20% down (PMI 0.48%/yr)</option>' +
+          '<option value="fha">FHA — 3.5% down (MIP 0.55%/yr + 1.75% upfront)</option>' +
+          '<option value="dscr">DSCR — 20%+ required (No PMI)</option>' +
+          '<option value="cash">Cash Purchase (No financing)</option>' +
+        '</select>' +
+        '<div class="hint">PMI/MIP rates sourced from Movement Mortgage pre-app estimate · Pittsburgh PA · May 2026</div>';
+      dpRow.insertAdjacentElement('afterend', row);
+    }
+  }
 })();
 
 let insMode   = 'yr';
@@ -88,6 +110,20 @@ function togglePM() {
   calc();
 }
 
+/* ─── Loan type change handler ────────────────────────────── */
+function updateLoanType() {
+  const lt   = document.getElementById('loan_type').value;
+  const rate = document.getElementById('rate');
+  const dp   = document.getElementById('dp');
+  // Suggest rate defaults per loan type (user can still override)
+  if      (lt === 'conv20' || lt === 'conv5') { rate.value = 6.875; }
+  else if (lt === 'fha')                      { rate.value = 6.125; dp.value = 3.5; }
+  else if (lt === 'dscr')                     { rate.value = 8.50;  dp.value = 20;  }
+  else if (lt === 'cash')                     { rate.value = 0;     dp.value = 100; }
+  if (lt === 'conv5') dp.value = 5;
+  calc();
+}
+
 /* ─── Main calculator ─────────────────────────────────────── */
 function calc() {
   const cfg = window.PLAYBOOK_CONFIG;
@@ -110,11 +146,33 @@ function calc() {
   const closingCostPct   = parseFloat(document.getElementById('closing_cost').value) || 6.5;
   const rehab            = parseFloat(document.getElementById('rehab').value) || 0;
 
+  // Loan type & PMI / MIP
+  // Rates sourced from Movement Mortgage pre-app estimate, Pittsburgh PA, May 2026
+  const loanTypeEl = document.getElementById('loan_type');
+  const loanType   = loanTypeEl ? loanTypeEl.value : 'conv20';
+  const isCash     = loanType === 'cash';
+
   // Financing
   const dp   = pp * dpPct / 100;
   const loan = pp - dp;
   const mr   = rate / 100 / 12;
-  const pi   = mr > 0 ? loan * (mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1) : loan / 360;
+  const pi   = isCash ? 0
+             : (mr > 0 ? loan * (mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1) : 0);
+
+  // PMI / MIP calculation
+  // Conventional <20% down: 0.48%/yr of loan (Movement Mortgage quote, $560,500 loan → $224.20/mo)
+  // FHA annual MIP:          0.55%/yr of loan (Movement Mortgage quote, $569,350 loan → $259.53/mo)
+  // FHA upfront MIP:         1.75% of loan    (standard FHA; confirmed $9,963.62 on $569,350)
+  let pmiMonthly   = 0;
+  let fhaUpfrontMip = 0;
+  if (!isCash) {
+    if ((loanType === 'conv5' || (loanType === 'conv20' && dpPct < 20)) && dpPct < 20) {
+      pmiMonthly = loan * 0.0048 / 12;
+    } else if (loanType === 'fha') {
+      pmiMonthly    = loan * 0.0055 / 12;
+      fhaUpfrontMip = loan * 0.0175;
+    }
+  }
 
   // Tax — location-specific via config (CLR × mill rate)
   const assessedVal = pp * cfg.clr;
@@ -124,7 +182,7 @@ function calc() {
   const grossIncome      = rentGross + otherIncome;
   const egi              = grossIncome * (1 - vacPct / 100);
   const pmFee            = egi * (pmPct / 100);
-  const totalExp         = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee;
+  const totalExp         = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee + pmiMonthly;
   const operatingExpPct  = egi > 0 ? totalExp / egi * 100 : 0;
   const noi              = egi - totalExp;
   const noi_yr           = noi * 12;
@@ -133,7 +191,7 @@ function calc() {
 
   // Returns
   const closingCostAmt = pp * closingCostPct / 100;
-  const cashToClose    = dp + closingCostAmt + rehab;
+  const cashToClose    = dp + closingCostAmt + rehab + fhaUpfrontMip;
   const coc            = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
   const dscr           = pi > 0 ? noi / pi : 0;
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
@@ -153,6 +211,11 @@ function calc() {
     {l:'Loan Amount',                                 v:fmt(loan),                                                 c:'',                      key:false},
     {l:'Monthly P&I',                                 v:fmt(pi) + '/mo',                                           c:'',                      key:false},
     {l:'Tax Estimate (CLR-modeled)',                  v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
+    ...(pmiMonthly > 0 ? [{
+      l: loanType === 'fha' ? 'FHA MIP (0.55%/yr · drops at loan payoff)' : 'PMI (0.48%/yr · drops at 80% LTV)',
+      v: fmt(pmiMonthly) + '/mo · ' + fmt(pmiMonthly * 12) + '/yr',
+      c: 'bad', key: false
+    }] : []),
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
     {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
@@ -197,8 +260,9 @@ function calc() {
     <div class="result-row"><span class="result-label">Down Payment (${dpPct}%)</span><span class="result-value">${fmt(dp)}</span></div>
     <div class="result-row"><span class="result-label">Closing Costs (${closingCostPct}%)</span><span class="result-value">${fmt(closingCostAmt)}</span></div>
     ${rehab > 0 ? `<div class="result-row"><span class="result-label">Rehab Budget</span><span class="result-value">${fmt(rehab)}</span></div>` : ''}
+    ${fhaUpfrontMip > 0 ? `<div class="result-row"><span class="result-label">FHA Upfront MIP (1.75%)</span><span class="result-value bad">${fmt(fhaUpfrontMip)}</span></div>` : ''}
     <div class="result-row key"><span class="result-label">Total Cash to Close</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
-    <div class="note">CoC return calculated on total cash invested (down + closing + rehab).</div>
+    <div class="note">CoC return calculated on total cash invested (down + closing + rehab${fhaUpfrontMip > 0 ? ' + FHA upfront MIP' : ''}).</div>
   </div>`;
 
   document.getElementById('results').innerHTML = html;
