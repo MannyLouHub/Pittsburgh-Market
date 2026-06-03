@@ -17,15 +17,18 @@
  * <script> block with location-specific checklist data.
  */
 
-/* ─── Back-to-hub nav + Loan Type field (injected on every page) */
+/* ─── Injections: back nav · loan type selector · Loans tab ───── */
 (function () {
-  // Back nav
+
+  /* 1 — Back nav */
   const nav = document.createElement('div');
   nav.className = 'back-nav';
   nav.innerHTML = '<a href="../index.html">← Market Hub</a>';
   document.body.insertBefore(nav, document.body.firstChild);
 
-  // Loan type selector — injected between Down Payment and Interest Rate
+  /* 2 — Loan type selector (between Down Payment and Interest Rate)
+   *     4 types: Conventional (PMI auto-applies when DP <20%) | FHA | DSCR | Cash
+   *     Source: Movement Mortgage pre-app estimate · Pittsburgh PA 15206 · May 2026 */
   const dpInput = document.getElementById('dp');
   if (dpInput) {
     const dpRow = dpInput.closest('.input-row');
@@ -35,16 +38,146 @@
       row.innerHTML =
         '<label>Loan Type</label>' +
         '<select id="loan_type" onchange="updateLoanType()">' +
-          '<option value="conv20">Conventional — 20%+ down (No PMI)</option>' +
-          '<option value="conv5">Conventional — &lt;20% down (PMI 0.48%/yr)</option>' +
-          '<option value="fha">FHA — 3.5% down (MIP 0.55%/yr + 1.75% upfront)</option>' +
-          '<option value="dscr">DSCR — 20%+ required (No PMI)</option>' +
-          '<option value="cash">Cash Purchase (No financing)</option>' +
+          '<option value="conv">Conventional (PMI auto-applies if &lt;20% down)</option>' +
+          '<option value="fha">FHA — 3.5% min down · MIP 0.55%/yr + 1.75% upfront · Owner-occupied only</option>' +
+          '<option value="dscr">DSCR — Investor loan · 20%+ down · No PMI</option>' +
+          '<option value="cash">Cash Purchase · No financing</option>' +
         '</select>' +
-        '<div class="hint">PMI/MIP rates sourced from Movement Mortgage pre-app estimate · Pittsburgh PA · May 2026</div>';
+        '<div class="hint">Conventional: PMI (0.48%/yr) kicks in automatically when DP &lt; 20% and drops at 80% LTV &nbsp;·&nbsp; ' +
+        'FHA: monthly MIP never drops if &lt;10% down &nbsp;·&nbsp; Rates: Movement Mortgage, May 2026</div>';
       dpRow.insertAdjacentElement('afterend', row);
     }
   }
+
+  /* 3 — Loans tab + panel (appended after last existing panel) */
+  const tabsInner = document.querySelector('.tabs-inner');
+  if (tabsInner) {
+    const t = document.createElement('div');
+    t.className = 'tab';
+    t.setAttribute('onclick', "showTab(event,'loans')");
+    t.textContent = '💰 Loans';
+    tabsInner.appendChild(t);
+  }
+
+  const panels = document.querySelectorAll('.panel');
+  const lastPanel = panels[panels.length - 1];
+  if (lastPanel) {
+    const cfg = window.PLAYBOOK_CONFIG || {};
+    const loc = cfg.locationName || 'this market';
+    // Flag distressed ZIP markets where DSCR lenders are cautious
+    const distressedZips = ['15132','15120']; // McKeesport, Homestead
+    const locKey = (cfg.locationKey || '').toLowerCase();
+    const dscrNote = (locKey === 'mckeesport' || locKey === 'homestead')
+      ? '<div class="alert red" style="margin-top:10px;"><div class="alert-title">⚠️ DSCR LENDER CAUTION IN ' + loc.toUpperCase() + '</div>Some DSCR lenders decline non-owner-occupied properties in distressed Mon Valley ZIPs. Confirm your DSCR lender underwrites this ZIP before making any offer. Cash is often the more reliable path in this market.</div>'
+      : '';
+
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.id = 'panel-loans';
+    panel.innerHTML = '<div class="content">' +
+      '<div class="section-title"><div class="dot"></div>Loan Types — What Works for Small Multifamily in Pittsburgh</div>' +
+
+      '<div class="alert red mb-14"><div class="alert-title">🚨 CRITICAL RULE: FHA IS OWNER-OCCUPIED ONLY</div>' +
+      'FHA loans for 2–4 unit properties require you to live in one of the units. You <strong>cannot</strong> use FHA for a straight investment property. FHA is the house-hack loan — not the investor loan. ' +
+      'If you are not planning to live in the building, your options are Conventional (20%+ down), DSCR, or Cash.</div>' +
+
+      '<div class="grid-2 mb-14">' +
+
+        /* CONVENTIONAL */
+        '<div class="strategy-card"><div class="s-stripe" style="background:var(--gold);"></div>' +
+        '<div class="s-label">Loan Type 1</div>' +
+        '<div class="s-title">Conventional</div>' +
+        '<div class="s-trigger">Best for: <span>Investment properties at 20%+ down · House hacks at 5–10% down with PMI</span></div>' +
+        '<div class="s-metrics">' +
+          '<div>Min Down (Investment): <span>20–25%</span></div>' +
+          '<div>Min Down (House Hack): <span>5%</span></div>' +
+          '<div>Rate (est.): <span>6.875% · Movement Mortgage, May 2026</span></div>' +
+          '<div>PMI: <span>0.48%/yr of loan when DP &lt;20% · Auto-drops at 80% LTV</span></div>' +
+          '<div>Upfront Cost: <span>None — no upfront mortgage insurance</span></div>' +
+          '<div>Credit Min: <span>620+ (740+ for best rates)</span></div>' +
+        '</div>' +
+        '<div class="s-note"><strong>✅ Pros:</strong> PMI drops at 80% LTV — it\'s not permanent. No upfront MIP. Standard product with widest lender availability. At 20%+ down, zero mortgage insurance cost.<br><br>' +
+        '<strong>⚠️ Cons:</strong> Investment properties require 20–25% down. Full income documentation required (W-2, tax returns, DTI check). Harder to qualify when you already own multiple financed properties.</div>' +
+        '</div>' +
+
+        /* FHA */
+        '<div class="strategy-card"><div class="s-stripe" style="background:#7a9fd4;"></div>' +
+        '<div class="s-label">Loan Type 2 — Owner-Occupied Only</div>' +
+        '<div class="s-title">FHA</div>' +
+        '<div class="s-trigger">Best for: <span>House hacks (you live in one unit) · First-time buyers · Lower credit profiles</span></div>' +
+        '<div class="s-metrics">' +
+          '<div>Min Down: <span>3.5% (580+ credit) · 10% (500–579 credit)</span></div>' +
+          '<div>Rate (est.): <span>6.125% · Movement Mortgage, May 2026</span></div>' +
+          '<div>Monthly MIP: <span>0.55%/yr of loan ($259.53/mo on $569,350 loan)</span></div>' +
+          '<div>Upfront MIP: <span>1.75% of loan at closing ($9,963.62 on $569,350)</span></div>' +
+          '<div>MIP Duration: <span>Life of loan if &lt;10% down · 11 years if ≥10% down</span></div>' +
+          '<div>Loan Limits (Allegheny Co.): <span>2-unit $671,200 · 3-unit $811,275 · 4-unit $1,008,150</span></div>' +
+        '</div>' +
+        '<div class="s-note"><strong>✅ Pros:</strong> Lowest down payment (3.5%). Lower rate than conventional. Lower credit threshold (580+). Best entry point for owner-occupant small multifamily.<br><br>' +
+        '<strong>🚨 Cons:</strong> OWNER-OCCUPIED ONLY — you must live in one unit. Monthly MIP never drops if you put less than 10% down. Upfront MIP adds ~$10K to your closing cost on a $570K loan. Loan limits cap your purchase price.</div>' +
+        '</div>' +
+
+      '</div>' +
+      '<div class="grid-2 mb-14">' +
+
+        /* DSCR */
+        '<div class="strategy-card"><div class="s-stripe" style="background:var(--green-light);"></div>' +
+        '<div class="s-label">Loan Type 3 — Investor Specific</div>' +
+        '<div class="s-title">DSCR</div>' +
+        '<div class="s-trigger">Best for: <span>Investment properties · Self-employed investors · Scaling investors with multiple properties</span></div>' +
+        '<div class="s-metrics">' +
+          '<div>Min Down: <span>20–25% (no PMI)</span></div>' +
+          '<div>Rate (est.): <span>8.50%+ (higher than conventional)</span></div>' +
+          '<div>Qualification: <span>Based on property income (rent ÷ debt service) — not your W-2</span></div>' +
+          '<div>Min DSCR: <span>Typically 1.20× (rent covers 120% of P&I)</span></div>' +
+          '<div>Income Docs: <span>No tax returns required · Lease or market rent analysis</span></div>' +
+          '<div>Entity: <span>Can close in LLC — no personal income exposure</span></div>' +
+        '</div>' +
+        '<div class="s-note"><strong>✅ Pros:</strong> Qualification is based on the property\'s income, not yours. No tax returns. Works when you have too many financed properties for conventional. LLC-friendly — keeps the asset in your entity.<br><br>' +
+        '<strong>⚠️ Cons:</strong> Rates are 1.5–2% higher than conventional. Requires 20–25% down. Some lenders decline certain Pittsburgh ZIP codes (McKeesport, Homestead). Property must cash-flow at 1.20× DSCR to qualify.</div>' +
+        dscrNote +
+        '</div>' +
+
+        /* CASH */
+        '<div class="strategy-card"><div class="s-stripe" style="background:var(--text-muted);"></div>' +
+        '<div class="s-label">Loan Type 4</div>' +
+        '<div class="s-title">Cash</div>' +
+        '<div class="s-trigger">Best for: <span>Low-price markets where financing is limited · Competitive offers · Maximum cash flow</span></div>' +
+        '<div class="s-metrics">' +
+          '<div>Down Payment: <span>100% — no loan</span></div>' +
+          '<div>P&I: <span>$0/mo — no debt service</span></div>' +
+          '<div>PMI/MIP: <span>None</span></div>' +
+          '<div>Qualification: <span>No lender approval needed</span></div>' +
+          '<div>Close Timeline: <span>Fastest — typically 10–21 days</span></div>' +
+          '<div>Best Markets: <span>' + loc + ' · McKeesport · Homestead · Low-price BRRRR targets</span></div>' +
+        '</div>' +
+        '<div class="s-note"><strong>✅ Pros:</strong> Strongest offer — no financing contingency. Maximum monthly cash flow (no debt service). Works in any market regardless of lender ZIP appetite. Fastest close.<br><br>' +
+        '<strong>⚠️ Cons:</strong> Ties up a large amount of capital. Lower cash-on-cash return than leveraged deals. Can\'t pull equity back out unless you refinance later (BRRRR exit).</div>' +
+        '</div>' +
+
+      '</div>' +
+
+      /* Quick comparison table */
+      '<div class="section-title sm"><div class="dot"></div>Quick Comparison — ' + loc + '</div>' +
+      '<table class="data-table mb-14">' +
+        '<thead><tr><th>Loan Type</th><th>Min Down</th><th>Rate (est.)</th><th>PMI / MIP</th><th>Owner-Occ Required</th><th>Best Use Case</th></tr></thead>' +
+        '<tbody>' +
+          '<tr><td class="hl">Conventional</td><td>5% (house hack) · 20% (investment)</td><td class="mu">6.875%</td><td>PMI 0.48%/yr if &lt;20% · drops at 80% LTV</td><td class="mu">No</td><td class="gr">Standard investment or house hack</td></tr>' +
+          '<tr><td class="hl">FHA</td><td>3.5%</td><td class="mu">6.125%</td><td>MIP 0.55%/yr (life of loan) + 1.75% upfront</td><td class="rd">YES — must live in one unit</td><td class="mu">House hack only</td></tr>' +
+          '<tr><td class="hl">DSCR</td><td>20–25%</td><td class="mu">8.50%+</td><td>None</td><td class="gr">No</td><td class="mu">Investor scaling · LLC deals · no W-2 needed</td></tr>' +
+          '<tr><td class="hl">Cash</td><td>100%</td><td class="mu">N/A</td><td>None</td><td class="gr">No</td><td class="gr">Max cash flow · distressed ZIPs · BRRRR entry</td></tr>' +
+        '</tbody>' +
+      '</table>' +
+
+      '<div class="sources"><strong>Rate source:</strong> ' +
+        '<a href="#" onclick="return false;">Movement Mortgage pre-application estimate · Pittsburgh PA 15206 · May 17, 2026 · Loan Officer: Justin Ruzicka · (412) 335-2317</a>' +
+        ' &nbsp;·&nbsp; Rates are estimates — get an official Loan Estimate before choosing a loan.' +
+      '</div>' +
+    '</div>';
+
+    lastPanel.insertAdjacentElement('afterend', panel);
+  }
+
 })();
 
 let insMode   = 'yr';
@@ -116,11 +249,10 @@ function updateLoanType() {
   const rate = document.getElementById('rate');
   const dp   = document.getElementById('dp');
   // Suggest rate defaults per loan type (user can still override)
-  if      (lt === 'conv20' || lt === 'conv5') { rate.value = 6.875; }
-  else if (lt === 'fha')                      { rate.value = 6.125; dp.value = 3.5; }
-  else if (lt === 'dscr')                     { rate.value = 8.50;  dp.value = 20;  }
-  else if (lt === 'cash')                     { rate.value = 0;     dp.value = 100; }
-  if (lt === 'conv5') dp.value = 5;
+  if      (lt === 'conv')  { rate.value = 6.875; }
+  else if (lt === 'fha')   { rate.value = 6.125; dp.value = 3.5; }
+  else if (lt === 'dscr')  { rate.value = 8.50;  dp.value = 20;  }
+  else if (lt === 'cash')  { rate.value = 0;     dp.value = 100; }
   calc();
 }
 
@@ -149,7 +281,7 @@ function calc() {
   // Loan type & PMI / MIP
   // Rates sourced from Movement Mortgage pre-app estimate, Pittsburgh PA, May 2026
   const loanTypeEl = document.getElementById('loan_type');
-  const loanType   = loanTypeEl ? loanTypeEl.value : 'conv20';
+  const loanType   = loanTypeEl ? loanTypeEl.value : 'conv';
   const isCash     = loanType === 'cash';
 
   // Financing
@@ -160,13 +292,15 @@ function calc() {
              : (mr > 0 ? loan * (mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1) : 0);
 
   // PMI / MIP calculation
-  // Conventional <20% down: 0.48%/yr of loan (Movement Mortgage quote, $560,500 loan → $224.20/mo)
-  // FHA annual MIP:          0.55%/yr of loan (Movement Mortgage quote, $569,350 loan → $259.53/mo)
-  // FHA upfront MIP:         1.75% of loan    (standard FHA; confirmed $9,963.62 on $569,350)
-  let pmiMonthly   = 0;
+  // Conventional: PMI auto-applies when DP < 20% — no separate option needed
+  //   0.48%/yr of loan (Movement Mortgage quote: $560,500 loan → $224.20/mo · May 2026)
+  // FHA: always has two charges — monthly MIP + upfront MIP
+  //   Monthly MIP: 0.55%/yr  (Movement Mortgage quote: $569,350 loan → $259.53/mo · May 2026)
+  //   Upfront MIP: 1.75% of loan at close (confirmed: $9,963.62 on $569,350)
+  let pmiMonthly    = 0;
   let fhaUpfrontMip = 0;
   if (!isCash) {
-    if ((loanType === 'conv5' || (loanType === 'conv20' && dpPct < 20)) && dpPct < 20) {
+    if (loanType === 'conv' && dpPct < 20) {
       pmiMonthly = loan * 0.0048 / 12;
     } else if (loanType === 'fha') {
       pmiMonthly    = loan * 0.0055 / 12;
