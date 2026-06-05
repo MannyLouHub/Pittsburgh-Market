@@ -52,10 +52,34 @@
           '<option value="fha">FHA — 3.5% min down · MIP 0.55%/yr + 1.75% upfront · Owner-occupied only</option>' +
           '<option value="dscr">DSCR — Investor loan · 20%+ down · No PMI</option>' +
           '<option value="cash">Cash Purchase · No financing</option>' +
+          '<option value="seller">Seller Finance — Flexible terms · No PMI/MIP · Balloon typical</option>' +
         '</select>' +
         '<div class="hint">Conventional: PMI (0.48%/yr) kicks in automatically when DP &lt; 20% and drops at 80% LTV &nbsp;·&nbsp; ' +
-        'FHA: monthly MIP never drops if &lt;10% down &nbsp;·&nbsp; Rates: Movement Mortgage, May 2026</div>';
+        'FHA: monthly MIP never drops if &lt;10% down &nbsp;·&nbsp; Rates: Movement Mortgage, May 2026 &nbsp;·&nbsp; ' +
+        'Seller Finance: No PMI/MIP regardless of down payment &nbsp;·&nbsp; Balloon due date typical</div>';
       dpRow.insertAdjacentElement('afterend', row);
+
+      // Seller Finance hidden input rows (shown only when loan_type === 'seller')
+      const sfAmortRow = document.createElement('div');
+      sfAmortRow.className = 'input-row';
+      sfAmortRow.id = 'sf-amort-row';
+      sfAmortRow.style.display = 'none';
+      sfAmortRow.innerHTML =
+        '<label>Amortization Period (yrs)</label>' +
+        '<input type="number" id="sf-amort" value="30" oninput="calc()">' +
+        '<div class="hint">Full amortization schedule length — P&amp;I payment is based on this</div>';
+
+      const sfBalloonRow = document.createElement('div');
+      sfBalloonRow.className = 'input-row';
+      sfBalloonRow.id = 'sf-balloon-row';
+      sfBalloonRow.style.display = 'none';
+      sfBalloonRow.innerHTML =
+        '<label>Balloon Due After (yrs) — 0 = fully amortized</label>' +
+        '<input type="number" id="sf-balloon" value="5" oninput="calc()">' +
+        '<div class="hint">Remaining balance due in full at this year — must refinance or sell to exit</div>';
+
+      row.insertAdjacentElement('afterend', sfAmortRow);
+      sfAmortRow.insertAdjacentElement('afterend', sfBalloonRow);
     }
   }
 
@@ -167,6 +191,25 @@
 
       '</div>' +
 
+      /* SELLER FINANCE — full-width card */
+      '<div class="strategy-card mb-14"><div class="s-stripe" style="background:#8b7cc8;"></div>' +
+      '<div class="s-label">Loan Type 5 — Creative Finance</div>' +
+      '<div class="s-title">Seller Finance</div>' +
+      '<div class="s-trigger">Best for: <span>Buyers who can\'t qualify conventionally · Sellers who want income stream · Low/no-down creative deals · Off-market negotiations</span></div>' +
+      '<div class="s-metrics">' +
+        '<div>Min Down: <span>0% possible — seller sets terms, no PMI/MIP at any LTV</span></div>' +
+        '<div>Rate (typical): <span>6–9% — seller charges a premium for providing financing</span></div>' +
+        '<div>Amortization: <span>Typically 20–30 yr schedule · 3–7 yr balloon payment</span></div>' +
+        '<div>PMI / MIP: <span>None — ever, regardless of down payment</span></div>' +
+        '<div>Income Docs: <span>Seller sets requirements — no bank underwriting</span></div>' +
+        '<div>Structure: <span>Purchase Money Mortgage (buyer gets deed · seller holds lien) — preferred in PA</span></div>' +
+      '</div>' +
+      '<div class="s-note"><strong>✅ Pros:</strong> No PMI or MIP at any down payment — even 0% down. Flexible terms negotiated directly with seller. Faster close. Installment sale tax benefit for seller incentivizes participation. Works when conventional lenders decline the property or borrower profile.<br><br>' +
+      '<strong>⚠️ Cons:</strong> Balloon payment (typically 5–7 yrs) means you <em>must</em> refinance, sell, or pay off — have an exit plan before you buy. Rate is usually above market. Requires a PA real estate attorney and properly recorded Purchase Money Mortgage. ' +
+      'Dodd-Frank ability-to-repay rules apply for owner-occupied 1–4 unit properties — seller must verify income and can only do 3 seller-financed deals/yr without an MLO license. ' +
+      'Use Purchase Money Mortgage (not Land Contract) for buyer protection in PA.</div>' +
+      '</div>' +
+
       /* Quick comparison table */
       '<div class="section-title sm"><div class="dot"></div>Quick Comparison — ' + loc + '</div>' +
       '<table class="data-table mb-14">' +
@@ -176,6 +219,7 @@
           '<tr><td class="hl">FHA</td><td>3.5%</td><td class="mu">6.125%</td><td>MIP 0.55%/yr (life of loan) + 1.75% upfront</td><td class="rd">YES — must live in one unit</td><td class="mu">House hack only</td></tr>' +
           '<tr><td class="hl">DSCR</td><td>20–25%</td><td class="mu">8.50%+</td><td>None</td><td class="gr">No</td><td class="mu">Investor scaling · LLC deals · no W-2 needed</td></tr>' +
           '<tr><td class="hl">Cash</td><td>100%</td><td class="mu">N/A</td><td>None</td><td class="gr">No</td><td class="gr">Max cash flow · distressed ZIPs · BRRRR entry</td></tr>' +
+          '<tr><td class="hl">Seller Finance</td><td>0–20% (seller sets)</td><td class="mu">6–9% (above market)</td><td class="gr">None — ever</td><td class="gr">No (investment-friendly)</td><td class="mu">Creative deals · off-market · buyers who can\'t qualify conventionally · balloon in 3–7 yrs</td></tr>' +
         '</tbody>' +
       '</table>' +
 
@@ -342,10 +386,16 @@ function updateLoanType() {
   const rate = document.getElementById('rate');
   const dp   = document.getElementById('dp');
   // Suggest rate defaults per loan type (user can still override)
-  if      (lt === 'conv')  { rate.value = 6.875; }
-  else if (lt === 'fha')   { rate.value = 6.125; dp.value = 3.5; }
-  else if (lt === 'dscr')  { rate.value = 8.50;  dp.value = 20;  }
-  else if (lt === 'cash')  { rate.value = 0;     dp.value = 100; }
+  if      (lt === 'conv')   { rate.value = 6.875; }
+  else if (lt === 'fha')    { rate.value = 6.125; dp.value = 3.5; }
+  else if (lt === 'dscr')   { rate.value = 8.50;  dp.value = 20;  }
+  else if (lt === 'cash')   { rate.value = 0;     dp.value = 100; }
+  else if (lt === 'seller') { rate.value = 7.5;   dp.value = 10;  }
+  // Show/hide seller finance rows
+  const sfAmortRow   = document.getElementById('sf-amort-row');
+  const sfBalloonRow = document.getElementById('sf-balloon-row');
+  if (sfAmortRow)   sfAmortRow.style.display   = lt === 'seller' ? '' : 'none';
+  if (sfBalloonRow) sfBalloonRow.style.display = lt === 'seller' ? '' : 'none';
   calc();
 }
 
@@ -381,8 +431,11 @@ function calc() {
   const dp   = pp * dpPct / 100;
   const loan = pp - dp;
   const mr   = rate / 100 / 12;
+  // Seller finance: use custom amort period; all others: standard 30-yr (360 mo)
+  const sfAmortYrs  = parseFloat((document.getElementById('sf-amort')  || {}).value) || 30;
+  const amortMonths = loanType === 'seller' ? sfAmortYrs * 12 : 360;
   const pi   = isCash ? 0
-             : (mr > 0 ? loan * (mr * Math.pow(1 + mr, 360)) / (Math.pow(1 + mr, 360) - 1) : 0);
+             : (mr > 0 ? loan * (mr * Math.pow(1 + mr, amortMonths)) / (Math.pow(1 + mr, amortMonths) - 1) : 0);
 
   // PMI / MIP calculation
   // Conventional: PMI auto-applies when DP < 20% — no separate option needed
@@ -398,6 +451,19 @@ function calc() {
     } else if (loanType === 'fha') {
       pmiMonthly    = loan * 0.0055 / 12;
       fhaUpfrontMip = loan * 0.0175;
+    }
+  }
+
+  // Seller Finance — balloon balance (remaining principal at balloon date)
+  let balloonBalance = 0;
+  let sfBalloonYrs   = 0;
+  if (loanType === 'seller') {
+    sfBalloonYrs = parseFloat((document.getElementById('sf-balloon') || {}).value) || 0;
+    if (sfBalloonYrs > 0 && loan > 0 && pi > 0) {
+      const bMo = sfBalloonYrs * 12;
+      balloonBalance = mr > 0
+        ? Math.max(0, loan * Math.pow(1 + mr, bMo) - pi * (Math.pow(1 + mr, bMo) - 1) / mr)
+        : Math.max(0, loan - (loan / amortMonths) * bMo);
     }
   }
 
@@ -442,6 +508,11 @@ function calc() {
       l: loanType === 'fha' ? 'FHA MIP (0.55%/yr · drops at loan payoff)' : 'PMI (0.48%/yr · drops at 80% LTV)',
       v: fmt(pmiMonthly) + '/mo · ' + fmt(pmiMonthly * 12) + '/yr',
       c: 'bad', key: false
+    }] : []),
+    ...(loanType === 'seller' && balloonBalance > 0 ? [{
+      l: 'Balloon Balance Due — Year ' + sfBalloonYrs + ' (must refi or sell)',
+      v: fmt(balloonBalance),
+      c: 'bad', key: true
     }] : []),
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
@@ -490,6 +561,8 @@ function calc() {
     ${fhaUpfrontMip > 0 ? `<div class="result-row"><span class="result-label">FHA Upfront MIP (1.75%)</span><span class="result-value bad">${fmt(fhaUpfrontMip)}</span></div>` : ''}
     <div class="result-row key"><span class="result-label">Total Cash to Close</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
     <div class="note">CoC return calculated on total cash invested (down + closing + rehab${fhaUpfrontMip > 0 ? ' + FHA upfront MIP' : ''}).</div>
+    ${loanType === 'seller' && balloonBalance > 0 ? `<div class="result-row" style="margin-top:8px;"><span class="result-label">⚠ Balloon Balance — Yr ${sfBalloonYrs} (future obligation, not today's cost)</span><span class="result-value bad">${fmt(balloonBalance)}</span></div>` : ''}
+    ${loanType === 'seller' ? `<div class="note" style="margin-top:6px;">Seller Finance: No PMI/MIP regardless of down payment. Rate and terms set by seller negotiation. Dodd-Frank ability-to-repay rules apply for owner-occupied properties.</div>` : ''}
   </div>`;
 
   document.getElementById('results').innerHTML = html;
