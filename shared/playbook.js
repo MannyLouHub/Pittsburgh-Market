@@ -516,6 +516,8 @@ function calc() {
     }] : []),
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
+    {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)' : 'Total Monthly Payment — PITI' + (pmiMonthly > 0 ? ' + PMI/MIP' : ''),
+     v: fmt(pi + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                                    c:'',                      key:true},
     {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
     {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
     {l:pmManaged ? 'PM Fee (' + pmPct + '% of EGI)' : 'PM Fee (Self-Managed)', v:fmt(pmFee) + '/mo',  c:pmManaged ? 'bad' : 'good', key:false},
