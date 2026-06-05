@@ -255,6 +255,7 @@
         '</div>' +
       '</div>' +
       '<div id="lc-results"></div>' +
+      '<div id="lc-schedule"></div>' +
       '<div id="lc-comparison"></div>' +
       '</div>';
 
@@ -676,6 +677,130 @@ function runLoanCalc() {
 
   html += '</div>';
   resultsEl.innerHTML = html;
+
+  /* ── Interest vs. Principal breakdown ─────────────── */
+  const schedEl = document.getElementById('lc-schedule');
+  if (schedEl) {
+    if (lcCalcType === 'io') {
+      schedEl.innerHTML =
+        '<div style="border:1px solid var(--border);padding:14px 16px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:14px;">' +
+        '<div class="ctc-header" style="margin-bottom:8px;">Interest vs. Principal Breakdown</div>' +
+        '<div class="alert red" style="margin-bottom:0;">' +
+          '<div class="alert-title">💸 100% INTEREST — $0 PRINCIPAL PAYDOWN</div>' +
+          'Every payment is pure interest. Your principal balance stays at ' + fmtN(P) +
+          ' for the entire term. Zero equity is built through payments — equity only comes from appreciation or paying off the balloon.' +
+        '</div></div>';
+    } else {
+      /* ── Amortization schedule ── */
+      const schedMonths = (lcBalloon && balloonMonths > 0) ? balloonMonths : n;
+
+      /* Month 1 split */
+      const m1Int  = P * r;
+      const m1Prin = monthlyPayment - m1Int;
+      const m1IntPct  = monthlyPayment > 0 ? m1Int  / monthlyPayment * 100 : 0;
+      const m1PrinPct = 100 - m1IntPct;
+
+      /* Find crossover month (principal first exceeds interest) */
+      let crossover = null;
+      let cBal = P;
+      for (let m = 1; m <= schedMonths; m++) {
+        const ip = cBal * r;
+        const pp = monthlyPayment - ip;
+        if (pp >= ip && crossover === null) crossover = m;
+        cBal = Math.max(0, cBal - pp);
+        if (cBal <= 0) break;
+      }
+
+      /* Yearly rows */
+      let tableRows = '';
+      let bal = P;
+      const totalYears = Math.ceil(schedMonths / 12);
+
+      for (let yr = 1; yr <= totalYears; yr++) {
+        const months = Math.min(12, schedMonths - (yr - 1) * 12);
+        let yrInt = 0, yrPrin = 0;
+        for (let m = 0; m < months; m++) {
+          const ip = bal * r;
+          const pp = Math.min(monthlyPayment - ip, bal);
+          yrInt  += ip;
+          yrPrin += pp;
+          bal     = Math.max(0, bal - pp);
+        }
+        const intPct  = (yrInt + yrPrin) > 0 ? yrInt / (yrInt + yrPrin) * 100 : 0;
+        const prinPct = 100 - intPct;
+
+        tableRows +=
+          '<tr>' +
+          '<td class="hl">Year ' + yr + '</td>' +
+          '<td class="mu">' + fmtD(monthlyPayment) + '/mo</td>' +
+          '<td style="color:#e07070;">' + fmtN(yrInt)  + '</td>' +
+          '<td style="color:#6db36d;">' + fmtN(yrPrin) + '</td>' +
+          '<td>' + fmtN(bal) + '</td>' +
+          '<td style="min-width:100px;">' +
+            '<div style="display:flex;height:10px;border-radius:3px;overflow:hidden;">' +
+              '<div style="width:' + intPct.toFixed(1) + '%;background:#e07070;"></div>' +
+              '<div style="width:' + prinPct.toFixed(1) + '%;background:#6db36d;"></div>' +
+            '</div>' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">' + intPct.toFixed(0) + '% int · ' + prinPct.toFixed(0) + '% prin</div>' +
+          '</td>' +
+          '</tr>';
+      }
+
+      /* Add balloon row if applicable */
+      if (lcBalloon && balloonBalance > 0) {
+        tableRows +=
+          '<tr class="key">' +
+          '<td class="hl" style="color:#e07070;">🔴 Balloon</td>' +
+          '<td colspan="3" style="color:#e07070;">Remaining balance due in full</td>' +
+          '<td class="rd">' + fmtN(balloonBalance) + '</td>' +
+          '<td style="color:#e07070;">Lump sum due</td>' +
+          '</tr>';
+      }
+
+      schedEl.innerHTML =
+        '<div style="border:1px solid var(--border);padding:14px 16px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:14px;">' +
+        '<div class="ctc-header" style="margin-bottom:10px;">Interest vs. Principal Breakdown</div>' +
+
+        /* Month 1 bar card + crossover card */
+        '<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">' +
+
+          '<div style="flex:1;min-width:180px;background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;">' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Month 1 — ' + fmtD(monthlyPayment) + '/mo</div>' +
+            '<div style="display:flex;height:22px;border-radius:4px;overflow:hidden;margin-bottom:6px;">' +
+              '<div style="width:' + m1IntPct.toFixed(1) + '%;background:#e07070;display:flex;align-items:center;padding-left:6px;font-size:11px;color:#fff;font-weight:700;">' + m1IntPct.toFixed(0) + '%</div>' +
+              '<div style="width:' + m1PrinPct.toFixed(1) + '%;background:#6db36d;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;color:#fff;font-weight:700;">' + m1PrinPct.toFixed(0) + '%</div>' +
+            '</div>' +
+            '<div style="font-size:12px;">' +
+              '<span style="color:#e07070;">■</span> Interest: ' + fmtD(m1Int) +
+              ' &nbsp;·&nbsp; <span style="color:#6db36d;">■</span> Principal: ' + fmtD(m1Prin) +
+            '</div>' +
+          '</div>' +
+
+          (crossover
+            ? '<div style="flex:1;min-width:180px;background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;">' +
+                '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Crossover Point</div>' +
+                '<div style="font-size:18px;font-weight:700;color:var(--gold);">Month ' + crossover + '</div>' +
+                '<div style="font-size:12px;color:var(--text-muted);">Year ' + (crossover / 12).toFixed(1) + ' — principal payment first exceeds interest</div>' +
+              '</div>'
+            : '') +
+
+        '</div>' +
+
+        /* Yearly table */
+        '<table class="data-table" style="margin-bottom:0;">' +
+          '<thead><tr>' +
+            '<th>Year</th>' +
+            '<th>Monthly</th>' +
+            '<th style="color:#e07070;">Interest Paid</th>' +
+            '<th style="color:#6db36d;">Principal Paid</th>' +
+            '<th>Balance</th>' +
+            '<th>Split</th>' +
+          '</tr></thead>' +
+          '<tbody>' + tableRows + '</tbody>' +
+        '</table>' +
+        '</div>';
+    }
+  }
 
   /* ── Side-by-side comparison ───────────────────────── */
   function compRow(label, pmt, intPaid, cost, balloon, isYourTerm) {
