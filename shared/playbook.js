@@ -20,6 +20,16 @@
 /* ─── Injections: back nav · loan type selector · Loans tab ───── */
 (function () {
 
+  /* 0 — Fix browser step-snapping: set step="any" on all number inputs
+   *     Without this, inputs with step="0.25", step="0.5", etc. will silently
+   *     round your typed value to the nearest valid step when you click away.
+   *     step="any" keeps spinner arrows but accepts any decimal value. */
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('input[type="number"]').forEach(function (el) {
+      el.setAttribute('step', 'any');
+    });
+  });
+
   /* 1 — Back nav */
   const nav = document.createElement('div');
   nav.className = 'back-nav';
@@ -176,6 +186,82 @@
     '</div>';
 
     lastPanel.insertAdjacentElement('afterend', panel);
+
+    /* 4 — Loan Calc tab + panel */
+    const lcT = document.createElement('div');
+    lcT.className = 'tab';
+    lcT.setAttribute('onclick', "showTab(event,'loancalc')");
+    lcT.textContent = '📐 Loan Calc';
+    if (tabsInner) tabsInner.appendChild(lcT);
+
+    const lcPanel = document.createElement('div');
+    lcPanel.className = 'panel';
+    lcPanel.id = 'panel-loancalc';
+
+    const _bs  = 'padding:6px 16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;margin-right:2px;';
+    const _on  = _bs + 'background:var(--gold);color:#000;border-color:var(--gold);';
+    const _off = _bs + 'background:rgba(255,255,255,0.06);color:var(--text-muted);border-color:var(--border);';
+
+    lcPanel.innerHTML =
+      '<div class="content">' +
+      '<div class="section-title"><div class="dot"></div>Loan Calculator — Amortization &amp; Interest-Only</div>' +
+      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text-muted);">' +
+        'Enter a <strong style="color:var(--text);">loan amount</strong>, rate, and term. ' +
+        'Toggle between <strong style="color:var(--text);">Amortization</strong> (P&amp;I — standard mortgage) ' +
+        'and <strong style="color:var(--text);">Interest-Only</strong> (used by private lenders — lower monthly, full principal due at balloon). ' +
+        'Enable <strong style="color:var(--text);">Balloon</strong> for any loan with a lump-sum payoff date.' +
+      '</div>' +
+      '<div style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:16px;">' +
+        '<div class="input-row">' +
+          '<label>Loan Amount — P</label>' +
+          '<input type="number" id="lc-principal" value="200000" oninput="runLoanCalc()">' +
+          '<div class="hint">Loan amount only — not the purchase price. Use the Deal Calculator tab to find your loan amount first.</div>' +
+        '</div>' +
+        '<div class="input-row">' +
+          '<label>Annual Interest Rate (%)</label>' +
+          '<input type="number" id="lc-rate" value="6.875" oninput="runLoanCalc()">' +
+          '<div class="hint">Enter as a percentage — e.g. 6.875 for 6.875%/yr</div>' +
+        '</div>' +
+        '<div class="input-row">' +
+          '<label>Loan Term</label>' +
+          '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input type="number" id="lc-term" value="30" oninput="runLoanCalc()" style="flex:1;">' +
+            '<button id="lc-term-btn" onclick="lcToggleTerm()" style="' + _on + '">Years</button>' +
+          '</div>' +
+          '<div class="hint" id="lc-term-hint">= 360 months</div>' +
+        '</div>' +
+        '<div class="input-row">' +
+          '<label>Payment Type</label>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button id="lc-amort-btn" onclick="lcSetCalcType(\'amort\')" style="' + _on  + '">📊 Amortization (P&amp;I)</button>' +
+            '<button id="lc-io-btn"    onclick="lcSetCalcType(\'io\')"    style="' + _off + '">💸 Interest-Only</button>' +
+          '</div>' +
+          '<div class="hint">Amortization = pays down principal every month &nbsp;·&nbsp; Interest-Only = interest only, full principal due at balloon date</div>' +
+        '</div>' +
+        '<div class="input-row">' +
+          '<label>Balloon Payment</label>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<button id="lc-balloon-btn" onclick="lcToggleBalloon()" style="' + _off + '">🔵 OFF — No Balloon</button>' +
+          '</div>' +
+          '<div class="hint">Enable for private lenders, bridge loans, hard money — any loan with a lump-sum payoff date</div>' +
+        '</div>' +
+        '<div class="input-row" id="lc-balloon-row" style="display:none;">' +
+          '<label>Balloon Due After</label>' +
+          '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input type="number" id="lc-balloon-term" value="24" oninput="runLoanCalc()" style="flex:1;">' +
+            '<button id="lc-balloon-term-btn" onclick="lcToggleBalloonTerm()" style="' + _on + '">Months</button>' +
+          '</div>' +
+          '<div class="hint">Full remaining balance is due at this point — must refinance, sell, or pay off</div>' +
+        '</div>' +
+      '</div>' +
+      '<div id="lc-results"></div>' +
+      '<div id="lc-comparison"></div>' +
+      '</div>';
+
+    panel.insertAdjacentElement('afterend', lcPanel);
+
+    /* Auto-run loan calc once all scripts have loaded */
+    setTimeout(function () { if (typeof runLoanCalc === 'function') runLoanCalc(); }, 0);
   }
 
 })();
@@ -183,6 +269,12 @@
 let insMode   = 'yr';
 let otherMode = 'pct';
 let pmManaged = true;
+
+/* Loan Calculator state */
+let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
+let lcBalloonMode = 'mo';    /* 'yr' | 'mo' */
+let lcCalcType    = 'amort'; /* 'amort' | 'io' */
+let lcBalloon     = false;
 
 /* ─── Tab navigation ──────────────────────────────────────── */
 function showTab(evt, name) {
@@ -414,4 +506,207 @@ function buildChecklist(id, items) {
 function toggleCheck(el) {
   const ic = el.querySelector('.flag-icon');
   ic.textContent = ic.textContent === '⬜' ? '✅' : '⬜';
+}
+
+/* ─── Loan Calculator helpers ─────────────────────────── */
+function _lcBtnStyle(isActive) {
+  const base = 'padding:6px 16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;margin-right:2px;';
+  return isActive
+    ? base + 'background:var(--gold);color:#000;border-color:var(--gold);'
+    : base + 'background:rgba(255,255,255,0.06);color:var(--text-muted);border-color:var(--border);';
+}
+
+function lcSetCalcType(type) {
+  lcCalcType = type;
+  const aBtn = document.getElementById('lc-amort-btn');
+  const iBtn = document.getElementById('lc-io-btn');
+  if (aBtn) aBtn.setAttribute('style', _lcBtnStyle(type === 'amort'));
+  if (iBtn) iBtn.setAttribute('style', _lcBtnStyle(type === 'io'));
+  runLoanCalc();
+}
+
+function lcToggleTerm() {
+  const inp = document.getElementById('lc-term');
+  const btn = document.getElementById('lc-term-btn');
+  if (!inp || !btn) return;
+  const val = parseFloat(inp.value) || 0;
+  if (lcTermMode === 'yr') {
+    lcTermMode   = 'mo';
+    inp.value    = Math.round(val * 12);
+    btn.textContent = 'Months';
+  } else {
+    lcTermMode   = 'yr';
+    inp.value    = +(val / 12).toFixed(1);
+    btn.textContent = 'Years';
+  }
+  runLoanCalc();
+}
+
+function lcToggleBalloonTerm() {
+  const inp = document.getElementById('lc-balloon-term');
+  const btn = document.getElementById('lc-balloon-term-btn');
+  if (!inp || !btn) return;
+  const val = parseFloat(inp.value) || 0;
+  if (lcBalloonMode === 'mo') {
+    lcBalloonMode   = 'yr';
+    inp.value       = +(val / 12).toFixed(1);
+    btn.textContent = 'Years';
+  } else {
+    lcBalloonMode   = 'mo';
+    inp.value       = Math.round(val * 12);
+    btn.textContent = 'Months';
+  }
+  runLoanCalc();
+}
+
+function lcToggleBalloon() {
+  lcBalloon = !lcBalloon;
+  const btn = document.getElementById('lc-balloon-btn');
+  const row = document.getElementById('lc-balloon-row');
+  if (!btn || !row) return;
+  if (lcBalloon) {
+    btn.textContent = '🟡 ON — Balloon Enabled';
+    btn.setAttribute('style', _lcBtnStyle(true));
+    row.style.display = '';
+  } else {
+    btn.textContent = '🔵 OFF — No Balloon';
+    btn.setAttribute('style', _lcBtnStyle(false));
+    row.style.display = 'none';
+  }
+  runLoanCalc();
+}
+
+/* ─── Loan Calculator — main calc ────────────────────── */
+function runLoanCalc() {
+  const P       = parseFloat(document.getElementById('lc-principal').value) || 0;
+  const annRate = parseFloat(document.getElementById('lc-rate').value)      || 0;
+  const termVal = parseFloat(document.getElementById('lc-term').value)      || 0;
+  const n       = Math.max(1, Math.round(lcTermMode === 'yr' ? termVal * 12 : termVal));
+  const r       = annRate / 100 / 12;
+
+  /* Update term hint */
+  const hint = document.getElementById('lc-term-hint');
+  if (hint) hint.textContent = lcTermMode === 'yr'
+    ? '= ' + n + ' months'
+    : '≈ ' + (n / 12).toFixed(1) + ' years';
+
+  const resultsEl    = document.getElementById('lc-results');
+  const comparisonEl = document.getElementById('lc-comparison');
+  if (!resultsEl || !comparisonEl) return;
+
+  if (P <= 0 || n <= 0) {
+    resultsEl.innerHTML    = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Enter a loan amount and term above to see results.</div>';
+    comparisonEl.innerHTML = '';
+    return;
+  }
+
+  /* ── Math helpers ──────────────────────────────────── */
+  function amortPmt(principal, mr, months) {
+    if (mr === 0) return principal / months;
+    return principal * (mr * Math.pow(1 + mr, months)) / (Math.pow(1 + mr, months) - 1);
+  }
+  function remainBal(principal, mr, amortMonths, paid) {
+    if (amortMonths <= 0) return 0;
+    if (mr === 0) return Math.max(0, principal - (principal / amortMonths) * paid);
+    const pmt = amortPmt(principal, mr, amortMonths);
+    return Math.max(0, principal * Math.pow(1 + mr, paid) - pmt * (Math.pow(1 + mr, paid) - 1) / mr);
+  }
+  function fmtD(v) { return '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function fmtN(v) { return '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:0,  maximumFractionDigits:0}); }
+
+  /* ── Core calculation ──────────────────────────────── */
+  let monthlyPayment, totalInterest, totalPaid, balloonBalance = 0, balloonMonths = 0;
+
+  if (lcCalcType === 'amort') {
+    monthlyPayment = amortPmt(P, r, n);
+    if (lcBalloon) {
+      const bVal     = parseFloat(document.getElementById('lc-balloon-term').value) || 0;
+      balloonMonths  = Math.min(Math.round(lcBalloonMode === 'yr' ? bVal * 12 : bVal), n);
+      balloonBalance = remainBal(P, r, n, balloonMonths);
+      totalPaid      = monthlyPayment * balloonMonths + balloonBalance;
+      totalInterest  = totalPaid - P;
+    } else {
+      totalPaid     = monthlyPayment * n;
+      totalInterest = totalPaid - P;
+    }
+  } else {
+    /* Interest-Only */
+    monthlyPayment = P * r;
+    balloonBalance = P; /* full principal always owed */
+    if (lcBalloon) {
+      const bVal    = parseFloat(document.getElementById('lc-balloon-term').value) || 0;
+      balloonMonths = Math.min(Math.round(lcBalloonMode === 'yr' ? bVal * 12 : bVal), n);
+    } else {
+      balloonMonths = n;
+    }
+    totalInterest = monthlyPayment * balloonMonths;
+    totalPaid     = totalInterest + balloonBalance;
+  }
+
+  /* ── Results HTML ──────────────────────────────────── */
+  const showBalloon = lcBalloon || lcCalcType === 'io';
+  const typeLabel   = lcCalcType === 'amort' ? 'Amortization (P&I)' : 'Interest-Only';
+
+  let html = '<div style="border:1px solid var(--border);padding:16px 18px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:14px;">';
+  html += '<div class="ctc-header" style="margin-bottom:10px;">' + typeLabel + ' Results</div>';
+
+  html += `<div class="result-row key"><span class="result-label">Monthly Payment</span><span class="result-value good">${fmtD(monthlyPayment)}/mo</span></div>`;
+
+  if (lcCalcType === 'io') {
+    html += `<div class="result-row"><span class="result-label">Annual Interest Cost</span><span class="result-value">${fmtN(monthlyPayment * 12)}/yr</span></div>`;
+    html += `<div class="result-row"><span class="result-label">Principal Balance (zero paydown)</span><span class="result-value bad">${fmtN(P)} — unchanged every month</span></div>`;
+  }
+
+  if (showBalloon) {
+    html += `<div class="result-row key"><span class="result-label">Balloon Payment Due · ${balloonMonths} months</span><span class="result-value bad">${fmtN(balloonBalance)}</span></div>`;
+  }
+
+  html += `<div class="result-row"><span class="result-label">Total Interest Paid${showBalloon ? ' (before balloon)' : ''}</span><span class="result-value warn">${fmtN(totalInterest)}</span></div>`;
+  html += `<div class="result-row key"><span class="result-label">Total Cash Out${showBalloon ? ' (payments + balloon)' : ''}</span><span class="result-value">${fmtN(totalPaid)}</span></div>`;
+
+  /* Equity milestones for standard amortization */
+  if (lcCalcType === 'amort' && !lcBalloon && n >= 60) {
+    const eq5  = P - remainBal(P, r, n, 60);
+    html += `<div class="result-row"><span class="result-label">Principal Paid Down — 5 years</span><span class="result-value gr">${fmtN(eq5)}</span></div>`;
+  }
+  if (lcCalcType === 'amort' && !lcBalloon && n >= 120) {
+    const eq10 = P - remainBal(P, r, n, 120);
+    html += `<div class="result-row"><span class="result-label">Principal Paid Down — 10 years</span><span class="result-value gr">${fmtN(eq10)}</span></div>`;
+  }
+
+  html += '</div>';
+  resultsEl.innerHTML = html;
+
+  /* ── Side-by-side comparison ───────────────────────── */
+  function compRow(label, pmt, intPaid, cost, balloon, isYourTerm) {
+    const cls = isYourTerm ? ' class="key"' : '';
+    return `<tr${cls}><td class="hl">${label}</td><td class="mu">${fmtD(pmt)}/mo</td><td class="warn">${fmtN(intPaid)}</td><td>${fmtN(cost)}</td><td class="${balloon === 'None' ? 'gr' : 'rd'}">${balloon}</td></tr>`;
+  }
+
+  const pmt30 = amortPmt(P, r, 360);
+  const pmt15 = amortPmt(P, r, 180);
+  const pmtN  = amortPmt(P, r, n);
+  const pmtIO = P * r;
+
+  let compHtml = '<div class="section-title sm" style="margin-top:4px;"><div class="dot"></div>Side-by-Side Comparison — Same Loan Amount &amp; Rate</div>';
+  compHtml += '<table class="data-table mb-14"><thead><tr><th>Scenario</th><th>Monthly</th><th>Total Interest</th><th>Total Cost</th><th>Balloon</th></tr></thead><tbody>';
+
+  compHtml += compRow('Amortized · 30 yr (standard)',              pmt30, pmt30 * 360 - P, pmt30 * 360, 'None',              false);
+  compHtml += compRow('Amortized · 15 yr',                         pmt15, pmt15 * 180 - P, pmt15 * 180, 'None',              false);
+
+  const termLabel = lcTermMode === 'yr' ? termVal + ' yr' : n + ' mo';
+  if (n !== 360 && n !== 180) {
+    compHtml += compRow('Amortized · ' + termLabel + ' ✦ your term', pmtN, pmtN * n - P,   pmtN * n,   'None',              true);
+  }
+
+  const io24Int = pmtIO * 24;
+  compHtml += compRow('Interest-Only · 2 yr balloon (private)',    pmtIO, io24Int,           io24Int + P, fmtN(P) + ' at 24 mo', false);
+
+  const io60Int = pmtIO * 60;
+  compHtml += compRow('Interest-Only · 5 yr balloon (bridge)',     pmtIO, io60Int,           io60Int + P, fmtN(P) + ' at 5 yr',  false);
+
+  compHtml += '</tbody></table>';
+  compHtml += `<div class="sources">All scenarios use the loan amount (${fmtN(P)}) and rate (${annRate}%/yr) entered above. ✦ marks your exact inputs. Comparison rows show standard reference terms.</div>`;
+
+  comparisonEl.innerHTML = compHtml;
 }
