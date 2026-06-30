@@ -7,24 +7,47 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
   :root {
+    /* ── Dark theme (default) ── */
     --steel:#1a1f2e;--steel-mid:#2c3347;--steel-light:#3d4560;
     --gold:#c9a84c;--gold-light:#e8c87a;--cream:#f5f0e8;
     --green:#2d7a4f;--green-light:#3da067;--red:#b84040;
     --yellow:#c9862a;--text:#e8e4dc;--text-muted:#9a96a0;
     --border:rgba(201,168,76,0.25);
+    --btn-accent:var(--gold);--badge-text:var(--steel);--card-shadow:none;
+    --watermark:rgba(201,168,76,0.04);
+    --header-grad:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);
   }
+  /* ── Light theme (sage canvas · navy text · gold accent) ── */
+  :root[data-theme="light"] {
+    --steel:#edefdf;--steel-mid:#ffffff;--steel-light:#cad0a1;
+    --gold:#c9a84c;--gold-light:#876d24;--cream:#0d1b2a;
+    --green:#2d7a4f;--green-light:#226b43;--red:#a52f2f;
+    --yellow:#9a6516;--text:#102a43;--text-muted:#486581;
+    --border:#dcdfcb;
+    --btn-accent:#243b53;--badge-text:#0d1b2a;
+    --card-shadow:0 1px 2px rgba(13,27,42,0.06),0 2px 6px rgba(13,27,42,0.05);
+    --watermark:rgba(13,27,42,0.05);
+    --header-grad:linear-gradient(135deg,#ffffff 0%,#edefdf 55%,#e4e8d2 100%);
+  }
+  /* ── Theme toggle button ── */
+  .theme-toggle{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.5px;
+    background:var(--steel-light);color:var(--btn-accent);border:1px solid var(--border);
+    padding:4px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;line-height:1;
+    transition:background .2s,border-color .2s,color .2s;white-space:nowrap;}
+  .theme-toggle:hover{border-color:var(--gold);}
+  .theme-toggle .ic{font-size:11px;}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);min-height:100vh;}
 
   /* HEADER */
-  .header{background:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);border-bottom:2px solid var(--gold);padding:32px 40px 28px;position:relative;overflow:hidden;}
-  .header::before{content:'PGH';position:absolute;right:-10px;top:-30px;font-family:'Playfair Display',serif;font-size:160px;font-weight:900;color:rgba(201,168,76,0.04);pointer-events:none;user-select:none;}
+  .header{background:var(--header-grad);border-bottom:2px solid var(--gold);padding:32px 40px 28px;position:relative;overflow:hidden;}
+  .header::before{content:'PGH';position:absolute;right:-10px;top:-30px;font-family:'Playfair Display',serif;font-size:160px;font-weight:900;color:var(--watermark);pointer-events:none;user-select:none;}
   .header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;}
   .header h1{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--cream);line-height:1.1;}
   .header h1 span{color:var(--gold);}
   .header-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:6px;letter-spacing:0.5px;}
   .header-badges{display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;}
-  .badge{background:var(--gold);color:var(--steel);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:3px 10px;letter-spacing:1px;white-space:nowrap;}
+  .badge{background:var(--gold);color:var(--badge-text);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:3px 10px;letter-spacing:1px;white-space:nowrap;}
   .badge.dim{background:var(--steel-light);color:var(--text-muted);}
 
   /* MAIN */
@@ -39,7 +62,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
 
   /* LOCATION CARD — ACTIVE */
-  .loc-card{border:1px solid var(--border);background:var(--steel-mid);position:relative;overflow:hidden;transition:border-color 0.2s,transform 0.15s;cursor:pointer;text-decoration:none;display:block;}
+  .loc-card{border:1px solid var(--border);background:var(--steel-mid);box-shadow:var(--card-shadow);position:relative;overflow:hidden;transition:border-color 0.2s,transform 0.15s,box-shadow 0.2s;cursor:pointer;text-decoration:none;display:block;}
   .loc-card:hover{border-color:var(--gold);transform:translateY(-2px);}
   .loc-card .card-stripe{height:3px;width:100%;background:var(--gold);}
   .loc-card .card-body{padding:18px 18px 16px;}
@@ -79,6 +102,7 @@
     .grid{grid-template-columns:1fr;}
   }
 </style>
+<script>(function(){try{document.documentElement.setAttribute("data-theme",localStorage.getItem("pmh-theme")||"dark");}catch(e){}})();</script>
 </head>
 <body>
 
@@ -89,6 +113,7 @@
       <div class="header-sub">LUMINOUS STEEL CITY HOLDINGS LLC · SMALL MULTIFAMILY INVESTMENT INTELLIGENCE · JUNE 2026</div>
     </div>
     <div class="header-badges">
+      <button type="button" class="theme-toggle" onclick="__toggleTheme()"></button>
       <div class="badge">JUNE 2026</div>
       <div class="badge dim">2–4 UNITS</div>
     </div>
@@ -702,5 +727,20 @@
   </div>
 </div>
 
+<script>
+  function __setTheme(t){
+    document.documentElement.setAttribute('data-theme',t);
+    try{localStorage.setItem('pmh-theme',t);}catch(e){}
+    var b=document.querySelector('.theme-toggle');
+    if(b){var light=t==='light';
+      b.innerHTML=light?'<span class="ic">☾</span> DARK':'<span class="ic">☀</span> LIGHT';
+      b.setAttribute('aria-label',light?'Switch to dark mode':'Switch to light mode');}
+  }
+  function __toggleTheme(){
+    var cur=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
+    __setTheme(cur==='light'?'dark':'light');
+  }
+  __setTheme(document.documentElement.getAttribute('data-theme')==='light'?'light':'dark');
+</script>
 </body>
 </html>

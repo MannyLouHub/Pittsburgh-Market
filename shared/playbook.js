@@ -36,6 +36,37 @@
   nav.innerHTML = '<a href="../index.html">← Market Hub</a>';
   document.body.insertBefore(nav, document.body.firstChild);
 
+  /* 1b — Light/Dark theme toggle.
+   *      The no-FOUC head script already set data-theme before paint; here we
+   *      just inject the control and keep it in sync. Default theme is dark. */
+  if (!window.__setTheme) {
+    window.__setTheme = function (t) {
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem('pmh-theme', t); } catch (e) {}
+      const btn = document.querySelector('.theme-toggle');
+      if (btn) {
+        const light = t === 'light';
+        btn.innerHTML = light
+          ? '<span class="ic">☾</span> DARK'
+          : '<span class="ic">☀</span> LIGHT';
+        btn.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode');
+      }
+    };
+    window.__toggleTheme = function () {
+      const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      window.__setTheme(cur === 'light' ? 'dark' : 'light');
+    };
+  }
+  const themeBtn = document.createElement('button');
+  themeBtn.type = 'button';
+  themeBtn.className = 'theme-toggle';
+  themeBtn.addEventListener('click', window.__toggleTheme);
+  const badgeBox = document.querySelector('.badges');
+  if (badgeBox) badgeBox.insertBefore(themeBtn, badgeBox.firstChild);
+  else nav.appendChild(themeBtn);
+  /* paint the correct label for the current theme */
+  window.__setTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
   /* 2 — Loan type selector (between Down Payment and Interest Rate)
    *     4 types: Conventional (PMI auto-applies when DP <20%) | FHA | DSCR | Cash
    *     Source: Movement Mortgage pre-app estimate · Pittsburgh PA 15206 · May 2026 */
