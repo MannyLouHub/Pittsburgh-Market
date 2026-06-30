@@ -173,6 +173,20 @@
           '<div class="input-row"><label>Selling Costs (% of sale)</label><input type="number" id="sellcost" value="6.5" oninput="calc()"></div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Rehab Financing (optional)</div>' +
+          '<div class="input-row"><label>Finance the Rehab?</label>' +
+            '<button type="button" class="toggle-btn" id="rehabfin-toggle" style="width:100%;text-align:center;" onclick="toggleRehabFin()">No — Rehab Paid in Cash</button>' +
+            '<div class="hint">Fund rehab with a separate loan (hard money / bridge) instead of cash. Boosts cash-on-cash but adds a 2nd payment</div></div>' +
+          '<div id="rehabfin-rows" style="display:none;">' +
+            '<div class="input-row"><label>% of Rehab Financed</label><input type="number" id="rehabfin-pct" value="100" oninput="calc()"></div>' +
+            '<div class="input-row"><label>Rehab Loan Rate (%)</label><input type="number" id="rehabfin-rate" value="10" oninput="calc()"></div>' +
+            '<div class="input-row"><label>Payment Type</label>' +
+              '<button type="button" class="toggle-btn" id="rehabfin-io-toggle" style="width:100%;text-align:center;" onclick="toggleRehabIO()">Interest-Only (hard money)</button>' +
+              '<div class="hint">Interest-only is typical for bridge/hard-money; amortizing uses the term below</div></div>' +
+            '<div class="input-row" id="rehabfin-term-row" style="display:none;"><label>Rehab Loan Amortization (yrs)</label><input type="number" id="rehabfin-term" value="20" oninput="calc()"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Refinance / BRRRR Exit (optional)</div>' +
           '<div class="input-row"><label>Market Cap Rate — for ARV (%)</label>' +
             '<input type="number" id="arvcaprate" value="8" oninput="calc()">' +
@@ -437,6 +451,8 @@ let insMode      = 'yr';
 let otherMode    = 'pct';
 let pmManaged    = true;
 let capexResMode = 'unit';   /* 'unit' = $/unit/yr · 'pct' = % of gross income */
+let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
+let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
 
 /* Loan Calculator state */
 let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
@@ -689,6 +705,25 @@ function syncStabRent() {
   if (rs && r && rs.dataset.touched !== '1') rs.value = r.value;
 }
 
+/* Rehab financing toggles */
+function toggleRehabFin() {
+  rehabFinanced = !rehabFinanced;
+  const btn  = document.getElementById('rehabfin-toggle');
+  const rows = document.getElementById('rehabfin-rows');
+  if (btn)  btn.textContent = rehabFinanced ? 'Yes — Rehab Financed (separate loan)' : 'No — Rehab Paid in Cash';
+  if (rows) rows.style.display = rehabFinanced ? '' : 'none';
+  calc();
+}
+
+function toggleRehabIO() {
+  rehabIO = !rehabIO;
+  const btn     = document.getElementById('rehabfin-io-toggle');
+  const termRow = document.getElementById('rehabfin-term-row');
+  if (btn)     btn.textContent = rehabIO ? 'Interest-Only (hard money)' : 'Amortizing';
+  if (termRow) termRow.style.display = rehabIO ? 'none' : '';
+  calc();
+}
+
 /* ─── Toggle helpers ──────────────────────────────────────── */
 function toggleIns() {
   const btn = document.getElementById('ins-toggle');
@@ -843,6 +878,15 @@ function calc() {
     }
   }
 
+  // Rehab financing — separate loan (hard money / bridge) instead of cash
+  const rehabFinPct = rehabFinanced ? (parseFloat((document.getElementById('rehabfin-pct') || {}).value) || 0) / 100 : 0;
+  const rehabLoan   = rehab * rehabFinPct;
+  const rehabRateMo = (parseFloat((document.getElementById('rehabfin-rate') || {}).value) || 0) / 100 / 12;
+  const rehabTermYr = parseFloat((document.getElementById('rehabfin-term') || {}).value) || 20;
+  const rehabPI     = rehabLoan > 0
+    ? (rehabIO ? rehabLoan * rehabRateMo : pmtFromLoan(rehabLoan, rehabRateMo, rehabTermYr * 12))
+    : 0;
+
   // Tax — location-specific via config (CLR × mill rate)
   const assessedVal = pp * cfg.clr;
   const monthlyTax  = assessedVal * (cfg.mills / 1000) / 12;
@@ -859,13 +903,13 @@ function calc() {
   const noi              = egi - totalExp;
   const noi_yr           = noi * 12;
   const capRate          = pp > 0 ? (noi_yr / pp * 100) : 0;
-  const cf               = noi - pi;
+  const cf               = noi - pi - rehabPI;
 
-  // Returns
+  // Returns — financed rehab leaves Cash to Close; rehab loan adds to debt service
   const closingCostAmt = pp * closingCostPct / 100;
-  const cashToClose    = dp + closingCostAmt + rehab + fhaUpfrontMip;
+  const cashToClose    = dp + closingCostAmt + (rehab - rehabLoan) + fhaUpfrontMip;
   const coc            = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
-  const dscr           = pi > 0 ? noi / pi : 0;
+  const dscr           = (pi + rehabPI) > 0 ? noi / (pi + rehabPI) : 0;
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
   const pricePerUnit   = units ? pp / units : 0;
 
@@ -881,10 +925,10 @@ function calc() {
   const stabTotalExp  = monthlyTax + insMonthly + stabPM + stabRepairs + stabOther + pmiMonthly + stabCapexRes + utilitiesMonthly;
   const stabNOI       = stabEGI - stabTotalExp;
   const stabNOI_yr    = stabNOI * 12;
-  const stabCF        = stabNOI - pi;
+  const stabCF        = stabNOI - pi - rehabPI;
   const stabCapRate   = pp > 0 ? stabNOI_yr / pp * 100 : 0;
   const stabCoC       = cashToClose > 0 ? stabCF * 12 / cashToClose * 100 : 0;
-  const stabDSCR      = pi > 0 ? stabNOI / pi : 0;
+  const stabDSCR      = (pi + rehabPI) > 0 ? stabNOI / (pi + rehabPI) : 0;
   const arvCapRate    = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
   const estimatedARV  = arvCapRate > 0 ? stabNOI_yr / arvCapRate : 0;
   const manualARV     = parseFloat((document.getElementById('arv') || {}).value) || 0;
@@ -904,6 +948,7 @@ function calc() {
     {l:'Loan Amount',                                 v:fmt(loan),                                                 c:'',                      key:false},
     ...(isCommercial ? [{l:'Financing Basis', v:'Commercial · ' + commAmortYrs + '-yr amort · DSCR ≥1.25×', c:'', key:false}] : []),
     {l:'Monthly P&I',                                 v:fmt(pi) + '/mo',                                           c:'',                      key:false},
+    ...(rehabPI > 0 ? [{l:'Rehab Loan ' + (rehabIO ? 'Interest' : 'P&I') + ' (' + fmt(rehabLoan) + ' @ ' + (rehabRateMo * 1200).toFixed(1) + '%' + (rehabIO ? ' IO' : '') + ')', v:fmt(rehabPI) + '/mo', c:'bad', key:false}] : []),
     {l:'Tax Estimate (CLR-modeled)',                  v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
     ...(pmiMonthly > 0 ? [{
       l: loanType === 'fha' ? 'FHA MIP (0.55%/yr · drops at loan payoff)' : 'PMI (0.48%/yr · drops at 80% LTV)',
@@ -917,8 +962,8 @@ function calc() {
     }] : []),
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
-    {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)' : 'Total Monthly Payment — PITI' + (pmiMonthly > 0 ? ' + PMI/MIP' : ''),
-     v: fmt(pi + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                                    c:'',                      key:true},
+    {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)' : 'Total Monthly Payment — PITI' + (pmiMonthly > 0 ? ' + PMI/MIP' : '') + (rehabPI > 0 ? ' + Rehab' : ''),
+     v: fmt(pi + rehabPI + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                          c:'',                      key:true},
     {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
     {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
     ...(capexReserveMonthly > 0 ? [{l:'CapEx Reserve (' + (capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr') + ')', v:fmt(capexReserveMonthly) + '/mo', c:'', key:false}] : []),
@@ -991,9 +1036,10 @@ function calc() {
     <div class="result-row"><span class="result-label">Down Payment (${dpPct}%)</span><span class="result-value">${fmt(dp)}</span></div>
     <div class="result-row"><span class="result-label">Closing Costs (${closingCostPct}%)</span><span class="result-value">${fmt(closingCostAmt)}</span></div>
     ${rehab > 0 ? `<div class="result-row"><span class="result-label">Rehab Budget</span><span class="result-value">${fmt(rehab)}</span></div>` : ''}
+    ${rehabLoan > 0 ? `<div class="result-row"><span class="result-label">Less: Rehab Financed (${(rehabFinPct * 100).toFixed(0)}%)</span><span class="result-value good">-${fmt(rehabLoan)}</span></div>` : ''}
     ${fhaUpfrontMip > 0 ? `<div class="result-row"><span class="result-label">FHA Upfront MIP (1.75%)</span><span class="result-value bad">${fmt(fhaUpfrontMip)}</span></div>` : ''}
     <div class="result-row key"><span class="result-label">Total Cash to Close</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
-    <div class="note">CoC return calculated on total cash invested (down + closing + rehab${fhaUpfrontMip > 0 ? ' + FHA upfront MIP' : ''}).</div>
+    <div class="note">CoC return calculated on total cash invested (down + closing + ${rehabLoan > 0 ? 'unfinanced rehab' : 'rehab'}${fhaUpfrontMip > 0 ? ' + FHA upfront MIP' : ''}).${rehabLoan > 0 ? ' Financed rehab ' + fmt(rehabLoan) + ' is carried as a separate loan, not cash.' : ''}</div>
     ${loanType === 'seller' && balloonBalance > 0 ? `<div class="result-row" style="margin-top:8px;"><span class="result-label">⚠ Balloon Balance — Yr ${sfBalloonYrs} (future obligation, not today's cost)</span><span class="result-value bad">${fmt(balloonBalance)}</span></div>` : ''}
     ${loanType === 'seller' ? `<div class="note" style="margin-top:6px;">Seller Finance: No PMI/MIP regardless of down payment. Rate and terms set by seller negotiation. Dodd-Frank ability-to-repay rules apply for owner-occupied properties.</div>` : ''}
   </div>`;
@@ -1067,7 +1113,7 @@ function calc() {
       const capexRes_t = capexResMode === 'pct' ? gross_t * capexResRaw / 100 : (units * capexResRaw / 12) * Math.pow(1 + expG, t - 1);
       const fixed_t    = fixedBase * Math.pow(1 + expG, t - 1);                                 // tax/ins/util grow at expense growth
       const noi_t_yr   = (egi_t - pm_t - repairs_t - other_t - capexRes_t - fixed_t) * 12;
-      const cf_t_yr    = noi_t_yr - pi * 12;
+      const cf_t_yr    = noi_t_yr - pi * 12 - rehabPI * 12;
       cumCF += cf_t_yr;
       cfByYear.push(cf_t_yr);
       lastBalance = remainingBalance(loan, mr, amortMonths, t * 12);
@@ -1110,10 +1156,11 @@ function calc() {
     const refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
     const refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
     const newLoan     = arvUsed * refiLtv;
-    const cashOut     = newLoan - loan;
+    const payoff      = loan + rehabLoan;                 // refi clears the acquisition AND rehab loans
+    const cashOut     = newLoan - payoff;
     const cashLeftIn  = cashToClose - cashOut;
     const newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
-    const postCF      = stabNOI_yr / 12 - newPI;
+    const postCF      = stabNOI_yr / 12 - newPI;          // rehab loan is gone post-refi
     const postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
       <div class="ctc-header">Refinance / BRRRR Exit</div>
@@ -1121,7 +1168,8 @@ function calc() {
       ${arvCapRate > 0 ? `<div class="result-row"><span class="result-label">Estimated ARV (NOI ÷ ${(arvCapRate * 100).toFixed(2)}% cap)</span><span class="result-value">${fmt(estimatedARV)}</span></div>` : ''}
       <div class="result-row key"><span class="result-label">ARV Used${manualARV > 0 ? ' (manual override)' : ' (estimate)'}</span><span class="result-value">${fmt(arvUsed)}</span></div>
       <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
-      <div class="result-row"><span class="result-label">Cash-Out (new loan − current loan)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
+      <div class="result-row"><span class="result-label">Loans Paid Off${rehabLoan > 0 ? ' (acquisition + rehab)' : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
+      <div class="result-row"><span class="result-label">Cash-Out (new loan − payoff)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
       <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
       <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
       <div class="result-row"><span class="result-label">Post-Refi Cash Flow (stabilized)</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
