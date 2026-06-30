@@ -168,6 +168,8 @@
           '<div class="input-row"><label>Expense Growth (%/yr)</label><input type="number" id="expgrowth" value="3" oninput="calc()"></div>' +
           '<div class="input-row"><label>Appreciation (%/yr)</label><input type="number" id="appreciation" value="3" oninput="calc()"></div>' +
           '<div class="input-row"><label>Hold Period (yrs)</label><input type="number" id="holdyears" value="5" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Years to Stabilize</label><input type="number" id="stabyears" value="1" oninput="calc()">' +
+            '<div class="hint">Years for the projection to ramp from in-place to stabilized rents (value-add only)</div></div>' +
           '<div class="input-row"><label>Selling Costs (% of sale)</label><input type="number" id="sellcost" value="6.5" oninput="calc()"></div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
@@ -867,6 +869,27 @@ function calc() {
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
   const pricePerUnit   = units ? pp / units : 0;
 
+  // ── Stabilized operations (at market rents) — value-add view ──
+  const rentStab      = parseFloat((document.getElementById('rentstab') || {}).value) || rentGross;
+  const isValueAdd    = Math.abs(rentStab - rentGross) > 0.5;
+  const stabGross     = rentStab + otherIncome;
+  const stabEGI       = stabGross * (1 - vacPct / 100);
+  const stabPM        = stabEGI * (pmPct / 100);
+  const stabRepairs   = rentStab * capexPct / 100;
+  const stabOther     = otherMode === 'pct' ? rentStab * otherInput / 100 : otherMonthly;
+  const stabCapexRes  = capexResMode === 'pct' ? stabGross * capexResRaw / 100 : units * capexResRaw / 12;
+  const stabTotalExp  = monthlyTax + insMonthly + stabPM + stabRepairs + stabOther + pmiMonthly + stabCapexRes + utilitiesMonthly;
+  const stabNOI       = stabEGI - stabTotalExp;
+  const stabNOI_yr    = stabNOI * 12;
+  const stabCF        = stabNOI - pi;
+  const stabCapRate   = pp > 0 ? stabNOI_yr / pp * 100 : 0;
+  const stabCoC       = cashToClose > 0 ? stabCF * 12 / cashToClose * 100 : 0;
+  const stabDSCR      = pi > 0 ? stabNOI / pi : 0;
+  const arvCapRate    = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
+  const estimatedARV  = arvCapRate > 0 ? stabNOI_yr / arvCapRate : 0;
+  const manualARV     = parseFloat((document.getElementById('arv') || {}).value) || 0;
+  const arvUsed       = manualARV > 0 ? manualARV : estimatedARV;
+
   // Helpers
   function fmt(n)           { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); }
   function fmtPct(n)        { return n.toFixed(2) + '%'; }
@@ -935,6 +958,33 @@ function calc() {
   }
   html += `<div class="verdict" style="border-color:${color};color:${color};">${verdict}</div>`;
 
+  // ── Stabilized deal verdict (only when value-add: stabilized rent differs) ──
+  if (isValueAdd) {
+    let sVerdict = '', sColor = '';
+    if (stabCapRate >= 8 && stabCoC >= 7 && stabDSCR >= dscrMin && stabCF >= 150 * units) {
+      sVerdict = '🟢 STRONG once stabilized — pencils at market rents'; sColor = 'var(--green-light)';
+    } else if (stabCapRate >= 6.5 && stabDSCR >= 1.0 && stabCF > 0) {
+      sVerdict = '🟡 MARGINAL once stabilized — verify the rent bump is achievable'; sColor = '#e09a40';
+    } else if (stabCF >= -200 && stabCapRate >= 5.5) {
+      sVerdict = '🟠 WEAK even stabilized — thin at market rents'; sColor = '#e09a40';
+    } else {
+      sVerdict = '🔴 PASS even stabilized — the rent bump does not rescue it'; sColor = '#e07070';
+    }
+    const rentLift = rentGross > 0 ? (rentStab / rentGross - 1) * 100 : 0;
+    html += `<div style="margin-top:12px;border:1px solid ${sColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
+      <div class="ctc-header" style="color:${sColor};">Stabilized Deal — at Market Rents (${rentLift >= 0 ? '+' : ''}${rentLift.toFixed(0)}% vs. in-place)</div>
+      <div class="result-row"><span class="result-label">Stabilized Gross Rent</span><span class="result-value">${fmt(rentStab)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${fmt(stabTotalExp)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI)}/mo · ${fmt(stabNOI_yr)}/yr</span></div>
+      <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${(stabCF < 0 ? '-' : '') + fmt(stabCF)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Stabilized Cap Rate</span><span class="result-value ${cls(stabCapRate, 8, 6.5)}">${fmtPct(stabCapRate)}</span></div>
+      <div class="result-row"><span class="result-label">Stabilized Cash-on-Cash</span><span class="result-value ${cls(stabCoC, 7, 4)}">${fmtPct(stabCoC)}</span></div>
+      <div class="result-row"><span class="result-label">Stabilized DSCR${isCommercial ? ' (≥1.25×)' : ''}</span><span class="result-value ${cls(stabDSCR, dscrMin, 1.0)}">${stabDSCR.toFixed(2)}x</span></div>
+      <div class="verdict" style="border-color:${sColor};color:${sColor};">${sVerdict}</div>
+      <div class="note">Same acquisition financing, rents raised to your Stabilized figure (expenses updated to match). Answers "is it a good deal after I do the work?" — separate from the in-place verdict above.</div>
+    </div>`;
+  }
+
   // Cash to Close summary
   html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
     <div class="ctc-header">Cash to Close</div>
@@ -995,21 +1045,38 @@ function calc() {
     const apprG       = (parseFloat((document.getElementById('appreciation') || {}).value) || 0) / 100;
     const sellCostPct = (parseFloat((document.getElementById('sellcost')     || {}).value) || 0) / 100;
 
-    let rows5 = '', cumCF = 0, lastBalance = loan;
+    const stabYears = Math.max(1, Math.round(parseFloat((document.getElementById('stabyears') || {}).value) || 1));
+    const fixedBase = monthlyTax + insMonthly + utilitiesMonthly + pmiMonthly;
+    let rows5 = '', cumCF = 0, lastBalance = loan, lastNOI_yr = 0;
     const cfByYear = [];
     for (let t = 1; t <= holdYears; t++) {
-      const inc_t       = grossIncome * Math.pow(1 + rentG, t - 1);
-      const egi_t       = inc_t * (1 - vacPct / 100);
-      const pm_t        = egi_t * (pmPct / 100);
-      const opexNonPM_t = (totalExp - pmFee) * Math.pow(1 + expG, t - 1);
-      const noi_t_yr    = (egi_t - pm_t - opexNonPM_t) * 12;
-      const cf_t_yr     = noi_t_yr - pi * 12;
+      // Rent: value-add ramps in-place → stabilized over stabYears, then grows; else grows from in-place
+      let rent_t;
+      if (isValueAdd) {
+        rent_t = t <= stabYears
+          ? rentGross + (rentStab - rentGross) * (t / stabYears)
+          : rentStab * Math.pow(1 + rentG, t - stabYears);
+      } else {
+        rent_t = rentGross * Math.pow(1 + rentG, t - 1);
+      }
+      const gross_t    = rent_t + otherIncome;
+      const egi_t      = gross_t * (1 - vacPct / 100);
+      const pm_t       = egi_t * (pmPct / 100);
+      const repairs_t  = rent_t * capexPct / 100;                                              // scales with rent
+      const other_t    = otherMode === 'pct' ? rent_t * otherInput / 100 : otherMonthly * Math.pow(1 + expG, t - 1);
+      const capexRes_t = capexResMode === 'pct' ? gross_t * capexResRaw / 100 : (units * capexResRaw / 12) * Math.pow(1 + expG, t - 1);
+      const fixed_t    = fixedBase * Math.pow(1 + expG, t - 1);                                 // tax/ins/util grow at expense growth
+      const noi_t_yr   = (egi_t - pm_t - repairs_t - other_t - capexRes_t - fixed_t) * 12;
+      const cf_t_yr    = noi_t_yr - pi * 12;
       cumCF += cf_t_yr;
       cfByYear.push(cf_t_yr);
       lastBalance = remainingBalance(loan, mr, amortMonths, t * 12);
-      rows5 += `<tr><td>${t}</td><td>${fmt(inc_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
+      lastNOI_yr  = noi_t_yr;
+      rows5 += `<tr><td>${t}</td><td>${fmt(rent_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
     }
-    const salePrice        = pp * Math.pow(1 + apprG, holdYears);
+    // Exit: value-add uses income approach (final NOI ÷ market cap) to capture created value; else appreciation
+    const exitByIncome     = isValueAdd && arvCapRate > 0;
+    const salePrice        = exitByIncome ? lastNOI_yr / arvCapRate : pp * Math.pow(1 + apprG, holdYears);
     const sellingCosts     = salePrice * sellCostPct;
     const netProceeds      = salePrice - sellingCosts - lastBalance;
     const principalPaydown = loan - lastBalance;
@@ -1020,40 +1087,24 @@ function calc() {
     const flows            = [-cashToClose].concat(cfByYear.map((c, i) => c + (i === holdYears - 1 ? netProceeds : 0)));
     const irrVal           = isCash ? avgCoC : irr(flows);
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
-      <div class="ctc-header">${holdYears}-Year Projection &amp; Total Return</div>
+      <div class="ctc-header">${holdYears}-Year Projection &amp; Total Return${isValueAdd ? ' (ramps to stabilized)' : ''}</div>
       <table class="data-table" style="margin:8px 0;font-size:12px;">
         <thead><tr><th>Yr</th><th>Gross Rent</th><th>NOI</th><th>Cash Flow</th><th>Loan Bal</th></tr></thead>
         <tbody>${rows5}</tbody>
       </table>
       <div class="result-row"><span class="result-label">Total Cash Flow (${holdYears} yr)</span><span class="result-value">${(cumCF < 0 ? '-' : '') + fmt(cumCF)}</span></div>
       <div class="result-row"><span class="result-label">Principal Paydown</span><span class="result-value good">${fmt(principalPaydown)}</span></div>
-      <div class="result-row"><span class="result-label">Appreciation Gain</span><span class="result-value good">${fmt(apprGain)}</span></div>
+      <div class="result-row"><span class="result-label">${exitByIncome ? 'Value Created (income-approach exit)' : 'Appreciation Gain'}</span><span class="result-value good">${fmt(apprGain)}</span></div>
       <div class="result-row"><span class="result-label">Net Sale Proceeds (after ${(sellCostPct * 100).toFixed(1)}% &amp; payoff)</span><span class="result-value">${fmt(netProceeds)}</span></div>
       <div class="result-row key"><span class="result-label">Total Profit (incl. sale, less cash in)</span><span class="result-value ${totalProfit < 0 ? 'bad' : 'good'}">${(totalProfit < 0 ? '-' : '') + fmt(totalProfit)}</span></div>
       <div class="result-row key"><span class="result-label">Equity Multiple</span><span class="result-value ${cls(equityMult, 2, 1)}">${equityMult.toFixed(2)}x</span></div>
       <div class="result-row key"><span class="result-label">IRR (${holdYears}-yr)</span><span class="result-value ${irrVal == null ? '' : cls(irrVal, 12, 8)}">${irrVal == null ? 'n/a' : fmtPct(irrVal)}</span></div>
       <div class="result-row"><span class="result-label">Avg Annual Cash-on-Cash</span><span class="result-value">${fmtPct(avgCoC)}</span></div>
-      <div class="note">Assumes ${(rentG * 100).toFixed(1)}% rent growth, ${(expG * 100).toFixed(1)}% expense growth, ${(apprG * 100).toFixed(1)}% appreciation, sold in year ${holdYears}. IRR weighs all cash flows + net sale proceeds against cash invested.</div>
+      <div class="note">${isValueAdd ? 'Rents ramp from in-place to stabilized over ' + stabYears + ' yr (expenses track rent)' + (exitByIncome ? '; exit valued at final NOI ÷ ' + (arvCapRate * 100).toFixed(2) + '% cap' : '') + '. ' : ''}Assumes ${(rentG * 100).toFixed(1)}% rent growth, ${(expG * 100).toFixed(1)}% expense growth${exitByIncome ? '' : ', ' + (apprG * 100).toFixed(1) + '% appreciation'}, sold in year ${holdYears}.</div>
     </div>`;
   }
 
-  /* ── Stabilized NOI & estimated ARV (feeds refi/BRRRR) ── */
-  const rentStab     = parseFloat((document.getElementById('rentstab') || {}).value) || rentGross;
-  const stabGross    = rentStab + otherIncome;
-  const stabEGI      = stabGross * (1 - vacPct / 100);
-  const stabPM       = stabEGI * (pmPct / 100);
-  const stabRepairs  = rentStab * capexPct / 100;
-  const stabOther    = otherMode === 'pct' ? rentStab * otherInput / 100 : otherMonthly;
-  const stabCapexRes = capexResMode === 'pct' ? stabGross * capexResRaw / 100 : units * capexResRaw / 12;
-  const stabTotalExp = monthlyTax + insMonthly + stabPM + stabRepairs + stabOther + pmiMonthly + stabCapexRes + utilitiesMonthly;
-  const stabNOI_yr   = (stabEGI - stabTotalExp) * 12;
-  const arvCapRate   = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
-  const estimatedARV = arvCapRate > 0 ? stabNOI_yr / arvCapRate : 0;
-  const manualARV    = parseFloat((document.getElementById('arv') || {}).value) || 0;
-  const arvUsed      = manualARV > 0 ? manualARV : estimatedARV;
-  const isValueAdd   = Math.abs(rentStab - rentGross) > 0.5;
-
-  /* ── Refinance / BRRRR exit (#5) ── */
+  /* ── Refinance / BRRRR exit (#5) — uses stabilized NOI/ARV computed above ── */
   if ((manualARV > 0 || isValueAdd) && arvUsed > 0 && !isCash) {
     const refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
     const refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
