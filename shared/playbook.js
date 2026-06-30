@@ -134,6 +134,53 @@
 
     // Set initial residential/commercial state
     applyCommercialMode(startUnits >= 5);
+
+    /* 2b — Extended inputs: reserves · hold assumptions · refi · rent roll */
+    const calcInputs = document.querySelector('.calc-inputs');
+    if (calcInputs) {
+      const ext = document.createElement('div');
+      ext.innerHTML =
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Operating Detail</div>' +
+          '<div class="input-row"><label>CapEx Reserve ($/unit/yr)</label>' +
+            '<input type="number" id="capexreserve" value="0" oninput="calc()">' +
+            '<div class="hint">Big-ticket reserve (roof/HVAC). Typical $250–300/unit/yr — separate from repairs</div></div>' +
+          '<div class="input-row"><label>Owner-Paid Utilities ($/mo)</label>' +
+            '<input type="number" id="utilities" value="0" oninput="calc()">' +
+            '<div class="hint">Water/sewer/trash or common-area utilities you pay (not the tenant)</div></div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Hold &amp; Return Assumptions</div>' +
+          '<div class="input-row"><label>Rent Growth (%/yr)</label><input type="number" id="rentgrowth" value="3" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Expense Growth (%/yr)</label><input type="number" id="expgrowth" value="3" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Appreciation (%/yr)</label><input type="number" id="appreciation" value="3" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Hold Period (yrs)</label><input type="number" id="holdyears" value="5" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Selling Costs (% of sale)</label><input type="number" id="sellcost" value="6.5" oninput="calc()"></div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Refinance / BRRRR Exit (optional)</div>' +
+          '<div class="input-row"><label>After-Repair Value / ARV ($)</label>' +
+            '<input type="number" id="arv" value="0" oninput="calc()">' +
+            '<div class="hint">Leave 0 to skip. Set ARV to model a cash-out refinance</div></div>' +
+          '<div class="input-row"><label>Refi LTV (%)</label><input type="number" id="refiltv" value="75" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Refi Rate (%)</label><input type="number" id="refirate" value="7.5" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="calc()"></div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Rent Roll / Unit Mix (optional)</div>' +
+          '<div id="rr-rows"></div>' +
+          '<div style="display:flex;gap:6px;align-items:center;margin:6px 0;">' +
+            '<button type="button" class="toggle-btn" style="padding:5px 10px;" onclick="rrAddRow()">+ Add unit type</button>' +
+            '<span class="hint" style="margin:0;">Total <strong id="rr-total">$0</strong> · <strong id="rr-units">0</strong> units</span>' +
+          '</div>' +
+          '<button type="button" class="toggle-btn" style="width:100%;text-align:center;" onclick="rrApply()">Apply Rent Roll to Calculator</button>' +
+          '<div class="hint">Build a per-unit mix; Apply sets Gross Rent &amp; Number of Units</div>' +
+        '</div>';
+      calcInputs.appendChild(ext);
+
+      const rrRows = document.getElementById('rr-rows');
+      if (rrRows) { rrRows.innerHTML = rrRowHTML(startUnits, Math.round(perUnitRent())); rrSum(); }
+    }
   }
 
   /* 3 — Loans tab + panel (appended after last existing panel) */
@@ -472,6 +519,103 @@ function applyCommercialMode(isCommercial) {
   }
 }
 
+/* ─── Investment math helpers (pro forma · max offer · refi) ─── */
+function pmtFromLoan(loanAmt, monthlyRate, nMonths) {
+  if (nMonths <= 0 || loanAmt <= 0) return 0;
+  if (monthlyRate <= 0) return loanAmt / nMonths;
+  return loanAmt * (monthlyRate * Math.pow(1 + monthlyRate, nMonths)) / (Math.pow(1 + monthlyRate, nMonths) - 1);
+}
+
+function loanFromPmt(payment, monthlyRate, nMonths) {
+  if (nMonths <= 0 || payment <= 0) return 0;
+  if (monthlyRate <= 0) return payment * nMonths;
+  return payment * (Math.pow(1 + monthlyRate, nMonths) - 1) / (monthlyRate * Math.pow(1 + monthlyRate, nMonths));
+}
+
+function remainingBalance(loanAmt, monthlyRate, nMonths, monthsPaid) {
+  if (loanAmt <= 0 || monthsPaid <= 0) return Math.max(0, loanAmt);
+  if (monthsPaid >= nMonths) return 0;
+  if (monthlyRate <= 0) return Math.max(0, loanAmt - (loanAmt / nMonths) * monthsPaid);
+  const p = pmtFromLoan(loanAmt, monthlyRate, nMonths);
+  const bal = loanAmt * Math.pow(1 + monthlyRate, monthsPaid) - p * (Math.pow(1 + monthlyRate, monthsPaid) - 1) / monthlyRate;
+  return Math.max(0, bal);
+}
+
+/* IRR via bisection on annual cashflows; returns % (number) or null if none. */
+function irr(cashflows) {
+  function npv(rate) {
+    let v = 0;
+    for (let i = 0; i < cashflows.length; i++) v += cashflows[i] / Math.pow(1 + rate, i);
+    return v;
+  }
+  let lo = -0.9999, hi = 1.0, flo = npv(lo), fhi = npv(hi), tries = 0;
+  while (flo * fhi > 0 && hi < 1000 && tries < 80) { hi *= 1.5; fhi = npv(hi); tries++; }
+  if (flo * fhi > 0) return null;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2, fmid = npv(mid);
+    if (Math.abs(fmid) < 0.01) return mid * 100;
+    if (flo * fmid < 0) { hi = mid; fhi = fmid; } else { lo = mid; flo = fmid; }
+  }
+  return ((lo + hi) / 2) * 100;
+}
+
+/* ─── Rent roll / unit-mix builder ────────────────────────── */
+function rrRowHTML(count, rent) {
+  return '<div class="rr-row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">' +
+    '<input type="number" class="rr-count" min="0" step="1" value="' + count + '" oninput="rrSum()" style="width:64px;" title="# of units">' +
+    '<span style="color:var(--text-muted);">×</span>' +
+    '<input type="number" class="rr-rent" min="0" value="' + rent + '" oninput="rrSum()" style="flex:1;" title="rent each ($/mo)">' +
+    '<button type="button" class="toggle-btn" style="padding:4px 9px;" onclick="rrRemoveRow(this)">−</button>' +
+  '</div>';
+}
+
+function rrAddRow() {
+  const rows = document.getElementById('rr-rows');
+  if (!rows) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = rrRowHTML(1, Math.round(perUnitRent()));
+  rows.appendChild(tmp.firstChild);
+  rrSum();
+}
+
+function rrRemoveRow(btn) {
+  const row = btn.closest('.rr-row');
+  if (row) row.remove();
+  rrSum();
+}
+
+function rrSum() {
+  const rows = document.querySelectorAll('#rr-rows .rr-row');
+  let totalRent = 0, totalUnits = 0;
+  rows.forEach(function (r) {
+    const c = parseInt(r.querySelector('.rr-count').value, 10) || 0;
+    const rt = parseFloat(r.querySelector('.rr-rent').value) || 0;
+    totalRent += c * rt; totalUnits += c;
+  });
+  const tEl = document.getElementById('rr-total');
+  const uEl = document.getElementById('rr-units');
+  if (tEl) tEl.textContent = '$' + totalRent.toLocaleString('en-US');
+  if (uEl) uEl.textContent = totalUnits;
+  return { totalRent: totalRent, totalUnits: totalUnits };
+}
+
+/* Apply the rent roll: sets gross rent + unit count without the per-unit
+ * auto-fill that onUnitsChange() would otherwise impose. */
+function rrApply() {
+  const s = rrSum();
+  if (s.totalUnits <= 0) return;
+  const uc = document.getElementById('unitcount');
+  const rentEl = document.getElementById('rent');
+  if (uc) uc.value = s.totalUnits;
+  if (rentEl) rentEl.value = s.totalRent;
+  const isCommercial = s.totalUnits >= 5;
+  const dp = document.getElementById('dp');
+  if (isCommercial && !_prevCommercial && dp && (parseFloat(dp.value) || 0) < 25) dp.value = 25;
+  _prevCommercial = isCommercial;
+  applyCommercialMode(isCommercial);
+  calc();
+}
+
 /* ─── Toggle helpers ──────────────────────────────────────── */
 function toggleIns() {
   const btn = document.getElementById('ins-toggle');
@@ -535,6 +679,21 @@ function updateLoanType() {
   applyCommercialMode(commercial);
   calc();
 }
+
+/* ─── DEFERRED / future calculator work (not yet built) ───────
+ * Tier 3 additions (reviewed, intentionally not built yet):
+ *   • Depreciation / after-tax cash flow — 27.5-yr residential vs 39-yr
+ *     commercial straight-line shield, after-tax CoC.
+ *   • Allegheny reassessment toggle — show tax on current assessment vs.
+ *     post-sale reassessment ("newcomer tax"); calc currently models the
+ *     post-sale basis only (CLR × purchase price).
+ *   • Sensitivity mini-grid — cash flow / DSCR across a price or rent range.
+ * Methodology fixes (left as-is to preserve existing tier calibrations):
+ *   • EGI definition mismatch — Rents-tab tables subtract vacancy + 2%
+ *     credit loss; calc() subtracts vacancy only. Reconcile (e.g. add a
+ *     credit-loss input) before relying on either as authoritative.
+ *   • Repairs & "Other" are computed off GROSS rent, not EGI.
+ * ───────────────────────────────────────────────────────────── */
 
 /* ─── Main calculator ─────────────────────────────────────── */
 function calc() {
@@ -614,10 +773,13 @@ function calc() {
   const monthlyTax  = assessedVal * (cfg.mills / 1000) / 12;
 
   // Income & expenses
+  const capexReserveAnnual  = parseFloat((document.getElementById('capexreserve') || {}).value) || 0;
+  const capexReserveMonthly = units * capexReserveAnnual / 12;
+  const utilitiesMonthly    = parseFloat((document.getElementById('utilities') || {}).value) || 0;
   const grossIncome      = rentGross + otherIncome;
   const egi              = grossIncome * (1 - vacPct / 100);
   const pmFee            = egi * (pmPct / 100);
-  const totalExp         = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee + pmiMonthly;
+  const totalExp         = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee + pmiMonthly + capexReserveMonthly + utilitiesMonthly;
   const operatingExpPct  = egi > 0 ? totalExp / egi * 100 : 0;
   const noi              = egi - totalExp;
   const noi_yr           = noi * 12;
@@ -663,9 +825,12 @@ function calc() {
      v: fmt(pi + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                                    c:'',                      key:true},
     {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
     {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
+    ...(capexReserveMonthly > 0 ? [{l:'CapEx Reserve (' + fmt(capexReserveAnnual) + '/unit/yr)', v:fmt(capexReserveMonthly) + '/mo', c:'', key:false}] : []),
+    ...(utilitiesMonthly > 0 ? [{l:'Owner-Paid Utilities', v:fmt(utilitiesMonthly) + '/mo', c:'', key:false}] : []),
     {l:pmManaged ? 'PM Fee (' + pmPct + '% of EGI)' : 'PM Fee (Self-Managed)', v:fmt(pmFee) + '/mo',  c:pmManaged ? 'bad' : 'good', key:false},
     {l:'Total Monthly Expenses',                      v:fmt(totalExp) + '/mo',                                     c:'',                      key:false},
     {l:'Operating Expense %',                         v:fmtPct(operatingExpPct) + ' of EGI',                       c:'',                      key:true},
+    ...((operatingExpPct > 0 && operatingExpPct < 35) ? [{l:'⚠ OpEx Ratio Low', v:'<35% of EGI — likely under-budgeted', c:'bad', key:true}] : []),
     {l:'NOI (before debt service)',                   v:(noi < 0 ? '-' : '') + fmt(noi) + '/mo',                  c:cls(noi, 0, -1),         key:false},
     {l:'Monthly Cash Flow',                           v:(cf < 0 ? '-' : '') + fmt(cf) + '/mo',                    c:cls(cf, 150 * units, 0), key:true},
     {l:'Annual Cash Flow',                            v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr',          c:cls(cf * 12, 1800 * units, 0), key:false},
@@ -709,6 +874,119 @@ function calc() {
     ${loanType === 'seller' && balloonBalance > 0 ? `<div class="result-row" style="margin-top:8px;"><span class="result-label">⚠ Balloon Balance — Yr ${sfBalloonYrs} (future obligation, not today's cost)</span><span class="result-value bad">${fmt(balloonBalance)}</span></div>` : ''}
     ${loanType === 'seller' ? `<div class="note" style="margin-top:6px;">Seller Finance: No PMI/MIP regardless of down payment. Rate and terms set by seller negotiation. Dodd-Frank ability-to-repay rules apply for owner-occupied properties.</div>` : ''}
   </div>`;
+
+  /* ── Lender sizing — max offer at target DSCR (#2) ── */
+  if (!isCash && pi > 0 && noi_yr > 0) {
+    const maxAnnualDS  = noi_yr / dscrMin;
+    const maxLoan      = loanFromPmt(maxAnnualDS / 12, mr, amortMonths);
+    const maxPrice     = dpPct < 100 ? maxLoan / (1 - dpPct / 100) : maxLoan;
+    const delta        = pp - maxPrice;
+    const deltaTxt     = delta > 0
+      ? 'Your price is ' + fmt(delta) + ' ABOVE the supported max'
+      : 'Your price is ' + fmt(-delta) + ' below the max — room to bid';
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+      <div class="ctc-header">Lender Sizing — Max Offer @ ${dscrMin.toFixed(2)}× DSCR</div>
+      <div class="result-row"><span class="result-label">Max Supportable Loan</span><span class="result-value">${fmt(maxLoan)}</span></div>
+      <div class="result-row"><span class="result-label">Max Purchase Price (at ${dpPct}% down)</span><span class="result-value">${fmt(maxPrice)}</span></div>
+      <div class="result-row key"><span class="result-label">${delta > 0 ? '⚠ ' : '✅ '}vs. Your Price</span><span class="result-value ${delta > 0 ? 'bad' : 'good'}">${deltaTxt}</span></div>
+      <div class="note">Lenders size the loan from NOI ÷ target DSCR — roughly the most you can pay and still qualify at today's rent &amp; rate.</div>
+    </div>`;
+  }
+
+  /* ── Break-even occupancy & rent (#4) ── */
+  if (grossIncome > 0) {
+    const repairRate = capexPct / 100;
+    const otherRate  = otherMode === 'pct' ? otherInput / 100 : 0;
+    const otherFixed = otherMode === 'pct' ? 0 : otherMonthly;
+    const fixedExp   = monthlyTax + insMonthly + utilitiesMonthly + capexReserveMonthly + pmiMonthly;
+    const denomO     = grossIncome * (1 - pmPct / 100);
+    const beOcc      = denomO > 0 ? (capexMonthly + otherMonthly + fixedExp + pi) / denomO : 0;
+    const a          = (1 - vacPct / 100) * (1 - pmPct / 100);
+    const denomR     = a - repairRate - otherRate;
+    const beRent     = denomR > 0 ? (pi + otherFixed + fixedExp - a * otherIncome) / denomR : 0;
+    const cushion    = 100 - beOcc * 100;
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+      <div class="ctc-header">Break-Even (cash flow = $0)</div>
+      <div class="result-row"><span class="result-label">Break-Even Occupancy</span><span class="result-value ${cls(cushion, 15, 5)}">${(beOcc * 100).toFixed(1)}%</span></div>
+      <div class="result-row"><span class="result-label">Break-Even Gross Rent</span><span class="result-value">${fmt(beRent)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Break-Even Rent / Unit</span><span class="result-value">${fmt(units ? beRent / units : 0)}/mo</span></div>
+      <div class="note">Occupancy or rent below these levels turns cash flow negative. Lower break-even = more downside cushion.</div>
+    </div>`;
+  }
+
+  /* ── 5-year pro forma & total return (#1) ── */
+  if (pp > 0) {
+    const holdYears   = Math.max(1, Math.round(parseFloat((document.getElementById('holdyears')   || {}).value) || 5));
+    const rentG       = (parseFloat((document.getElementById('rentgrowth')   || {}).value) || 0) / 100;
+    const expG        = (parseFloat((document.getElementById('expgrowth')    || {}).value) || 0) / 100;
+    const apprG       = (parseFloat((document.getElementById('appreciation') || {}).value) || 0) / 100;
+    const sellCostPct = (parseFloat((document.getElementById('sellcost')     || {}).value) || 0) / 100;
+
+    let rows5 = '', cumCF = 0, lastBalance = loan;
+    const cfByYear = [];
+    for (let t = 1; t <= holdYears; t++) {
+      const inc_t       = grossIncome * Math.pow(1 + rentG, t - 1);
+      const egi_t       = inc_t * (1 - vacPct / 100);
+      const pm_t        = egi_t * (pmPct / 100);
+      const opexNonPM_t = (totalExp - pmFee) * Math.pow(1 + expG, t - 1);
+      const noi_t_yr    = (egi_t - pm_t - opexNonPM_t) * 12;
+      const cf_t_yr     = noi_t_yr - pi * 12;
+      cumCF += cf_t_yr;
+      cfByYear.push(cf_t_yr);
+      lastBalance = remainingBalance(loan, mr, amortMonths, t * 12);
+      rows5 += `<tr><td>${t}</td><td>${fmt(inc_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
+    }
+    const salePrice        = pp * Math.pow(1 + apprG, holdYears);
+    const sellingCosts     = salePrice * sellCostPct;
+    const netProceeds      = salePrice - sellingCosts - lastBalance;
+    const principalPaydown = loan - lastBalance;
+    const apprGain         = salePrice - pp;
+    const totalProfit      = cumCF + netProceeds - cashToClose;
+    const equityMult       = cashToClose > 0 ? (cumCF + netProceeds) / cashToClose : 0;
+    const avgCoC           = cashToClose > 0 ? (cumCF / holdYears) / cashToClose * 100 : 0;
+    const flows            = [-cashToClose].concat(cfByYear.map((c, i) => c + (i === holdYears - 1 ? netProceeds : 0)));
+    const irrVal           = isCash ? avgCoC : irr(flows);
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+      <div class="ctc-header">${holdYears}-Year Projection &amp; Total Return</div>
+      <table class="data-table" style="margin:8px 0;font-size:12px;">
+        <thead><tr><th>Yr</th><th>Gross Rent</th><th>NOI</th><th>Cash Flow</th><th>Loan Bal</th></tr></thead>
+        <tbody>${rows5}</tbody>
+      </table>
+      <div class="result-row"><span class="result-label">Total Cash Flow (${holdYears} yr)</span><span class="result-value">${(cumCF < 0 ? '-' : '') + fmt(cumCF)}</span></div>
+      <div class="result-row"><span class="result-label">Principal Paydown</span><span class="result-value good">${fmt(principalPaydown)}</span></div>
+      <div class="result-row"><span class="result-label">Appreciation Gain</span><span class="result-value good">${fmt(apprGain)}</span></div>
+      <div class="result-row"><span class="result-label">Net Sale Proceeds (after ${(sellCostPct * 100).toFixed(1)}% &amp; payoff)</span><span class="result-value">${fmt(netProceeds)}</span></div>
+      <div class="result-row key"><span class="result-label">Total Profit (incl. sale, less cash in)</span><span class="result-value ${totalProfit < 0 ? 'bad' : 'good'}">${(totalProfit < 0 ? '-' : '') + fmt(totalProfit)}</span></div>
+      <div class="result-row key"><span class="result-label">Equity Multiple</span><span class="result-value ${cls(equityMult, 2, 1)}">${equityMult.toFixed(2)}x</span></div>
+      <div class="result-row key"><span class="result-label">IRR (${holdYears}-yr)</span><span class="result-value ${irrVal == null ? '' : cls(irrVal, 12, 8)}">${irrVal == null ? 'n/a' : fmtPct(irrVal)}</span></div>
+      <div class="result-row"><span class="result-label">Avg Annual Cash-on-Cash</span><span class="result-value">${fmtPct(avgCoC)}</span></div>
+      <div class="note">Assumes ${(rentG * 100).toFixed(1)}% rent growth, ${(expG * 100).toFixed(1)}% expense growth, ${(apprG * 100).toFixed(1)}% appreciation, sold in year ${holdYears}. IRR weighs all cash flows + net sale proceeds against cash invested.</div>
+    </div>`;
+  }
+
+  /* ── Refinance / BRRRR exit (#5) ── */
+  const arv = parseFloat((document.getElementById('arv') || {}).value) || 0;
+  if (arv > 0 && !isCash) {
+    const refiLtv     = (parseFloat((document.getElementById('refiltv')   || {}).value) || 75) / 100;
+    const refiRateMo  = (parseFloat((document.getElementById('refirate')  || {}).value) || 7.5) / 100 / 12;
+    const refiAmortYr = parseFloat((document.getElementById('refiamort')  || {}).value) || 30;
+    const newLoan     = arv * refiLtv;
+    const cashOut     = newLoan - loan;
+    const cashLeftIn  = cashToClose - cashOut;
+    const newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
+    const postCF      = noi - newPI;
+    const postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+      <div class="ctc-header">Refinance / BRRRR Exit</div>
+      <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ${fmt(arv)} ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
+      <div class="result-row"><span class="result-label">Cash-Out (new loan − current loan)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
+      <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
+      <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Post-Refi Cash Flow</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
+      <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
+      <div class="note">BRRRR check: refinance at ARV to recover capital. Cash left in ≤ $0 means an effectively infinite cash-on-cash return.</div>
+    </div>`;
+  }
 
   document.getElementById('results').innerHTML = html;
 }
