@@ -125,11 +125,21 @@
       rateEl.closest('.input-row').insertAdjacentElement('afterend', commRow);
     }
 
-    // Update the Monthly Gross Rent hint to reflect per-unit auto-fill
+    // Relabel gross rent as Acquisition / In-Place, and inject a Stabilized rent field after it
     const rentEl0 = document.getElementById('rent');
     if (rentEl0 && rentEl0.closest('.input-row')) {
-      const rh = rentEl0.closest('.input-row').querySelector('.hint');
-      if (rh) rh.textContent = 'Auto-fills from unit count (≈ $' + Math.round(perUnitRent()) + '/unit); edit to your actual rent roll';
+      const rentRow0 = rentEl0.closest('.input-row');
+      const rLbl = rentRow0.querySelector('label');
+      if (rLbl) rLbl.textContent = 'Acquisition / In-Place Rent ($/mo)';
+      const rh = rentRow0.querySelector('.hint');
+      if (rh) rh.textContent = 'Current in-place rents you buy on — drives the year-1 deal math';
+      const stabRow = document.createElement('div');
+      stabRow.className = 'input-row';
+      stabRow.innerHTML =
+        '<label>Stabilized / Market Rent ($/mo)</label>' +
+        '<input type="number" id="rentstab" value="' + (parseFloat(rentEl0.value) || 0) + '" oninput="this.dataset.touched=\'1\';calc()">' +
+        '<div class="hint">Post-reno / market rents — drives stabilized NOI &amp; the estimated ARV. Tracks in-place until you edit it</div>';
+      rentRow0.insertAdjacentElement('afterend', stabRow);
     }
 
     // Set initial residential/commercial state
@@ -142,9 +152,12 @@
       ext.innerHTML =
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Operating Detail</div>' +
-          '<div class="input-row"><label>CapEx Reserve ($/unit/yr)</label>' +
-            '<input type="number" id="capexreserve" value="0" oninput="calc()">' +
-            '<div class="hint">Big-ticket reserve (roof/HVAC). Typical $250–300/unit/yr — separate from repairs</div></div>' +
+          '<div class="input-row"><label>CapEx Reserve</label>' +
+            '<div class="input-with-toggle">' +
+              '<input type="number" id="capexreserve" value="0" oninput="calc()">' +
+              '<button type="button" class="toggle-btn" id="capexres-toggle" onclick="toggleCapexRes()">$/unit/yr</button>' +
+            '</div>' +
+            '<div class="hint">Big-ticket sinking fund (roof/HVAC) — separate from Repairs. Toggle $/unit/yr or % of income (≈5–10% typical)</div></div>' +
           '<div class="input-row"><label>Owner-Paid Utilities ($/mo)</label>' +
             '<input type="number" id="utilities" value="0" oninput="calc()">' +
             '<div class="hint">Water/sewer/trash or common-area utilities you pay (not the tenant)</div></div>' +
@@ -159,12 +172,16 @@
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Refinance / BRRRR Exit (optional)</div>' +
-          '<div class="input-row"><label>After-Repair Value / ARV ($)</label>' +
-            '<input type="number" id="arv" value="0" oninput="calc()">' +
-            '<div class="hint">Leave 0 to skip. Set ARV to model a cash-out refinance</div></div>' +
+          '<div class="input-row"><label>Market Cap Rate — for ARV (%)</label>' +
+            '<input type="number" id="arvcaprate" value="8" oninput="calc()">' +
+            '<div class="hint">Estimated ARV = stabilized NOI ÷ this cap rate. Bump Stabilized Rent above to trigger it</div></div>' +
+          '<div class="input-row"><label>ARV — manual override ($)</label>' +
+            '<input type="number" id="arv" value="0" oninput="this.dataset.touched=\'1\';calc()">' +
+            '<div class="hint">Leave 0 to use the estimate; enter a number (e.g. comp-based) to override it</div></div>' +
           '<div class="input-row"><label>Refi LTV (%)</label><input type="number" id="refiltv" value="75" oninput="calc()"></div>' +
           '<div class="input-row"><label>Refi Rate (%)</label><input type="number" id="refirate" value="7.5" oninput="calc()"></div>' +
-          '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="calc()"></div>' +
+          '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="this.dataset.touched=\'1\';calc()">' +
+            '<div class="hint">Defaults to your acquisition amortization until you change it</div></div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Rent Roll / Unit Mix (optional)</div>' +
@@ -173,8 +190,11 @@
             '<button type="button" class="toggle-btn" style="padding:5px 10px;" onclick="rrAddRow()">+ Add unit type</button>' +
             '<span class="hint" style="margin:0;">Total <strong id="rr-total">$0</strong> · <strong id="rr-units">0</strong> units</span>' +
           '</div>' +
-          '<button type="button" class="toggle-btn" style="width:100%;text-align:center;" onclick="rrApply()">Apply Rent Roll to Calculator</button>' +
-          '<div class="hint">Build a per-unit mix; Apply sets Gross Rent &amp; Number of Units</div>' +
+          '<div style="display:flex;gap:6px;">' +
+            '<button type="button" class="toggle-btn" style="flex:1;text-align:center;" onclick="rrApply(\'acq\')">→ Acquisition</button>' +
+            '<button type="button" class="toggle-btn" style="flex:1;text-align:center;" onclick="rrApply(\'stab\')">→ Stabilized</button>' +
+          '</div>' +
+          '<div class="hint">Build the unit mix, then send the total to Acquisition (in-place) or Stabilized (market) rents &amp; unit count</div>' +
         '</div>';
       calcInputs.appendChild(ext);
 
@@ -411,9 +431,10 @@
 
 })();
 
-let insMode   = 'yr';
-let otherMode = 'pct';
-let pmManaged = true;
+let insMode      = 'yr';
+let otherMode    = 'pct';
+let pmManaged    = true;
+let capexResMode = 'unit';   /* 'unit' = $/unit/yr · 'pct' = % of gross income */
 
 /* Loan Calculator state */
 let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
@@ -560,11 +581,15 @@ function irr(cashflows) {
 }
 
 /* ─── Rent roll / unit-mix builder ────────────────────────── */
-function rrRowHTML(count, rent) {
-  return '<div class="rr-row" style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">' +
-    '<input type="number" class="rr-count" min="0" step="1" value="' + count + '" oninput="rrSum()" style="width:64px;" title="# of units">' +
+function rrRowHTML(count, rent, type) {
+  type = type || '2/1';
+  const opts = ['Studio', '1/1', '2/1', '2/2', '3/1', '3/2', '4/2']
+    .map(function (t) { return '<option' + (t === type ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+  return '<div class="rr-row" style="display:flex;gap:5px;align-items:center;margin-bottom:5px;">' +
+    '<select class="rr-type" onchange="rrSum()" style="width:62px;" title="unit type (bed/bath)">' + opts + '</select>' +
+    '<input type="number" class="rr-count" min="0" step="1" value="' + count + '" oninput="rrSum()" style="width:46px;" title="# of units">' +
     '<span style="color:var(--text-muted);">×</span>' +
-    '<input type="number" class="rr-rent" min="0" value="' + rent + '" oninput="rrSum()" style="flex:1;" title="rent each ($/mo)">' +
+    '<input type="number" class="rr-rent" min="0" value="' + rent + '" oninput="rrSum()" style="flex:1;min-width:58px;" title="rent each ($/mo)">' +
     '<button type="button" class="toggle-btn" style="padding:4px 9px;" onclick="rrRemoveRow(this)">−</button>' +
   '</div>';
 }
@@ -599,21 +624,67 @@ function rrSum() {
   return { totalRent: totalRent, totalUnits: totalUnits };
 }
 
-/* Apply the rent roll: sets gross rent + unit count without the per-unit
- * auto-fill that onUnitsChange() would otherwise impose. */
-function rrApply() {
+/* Apply the rent roll total + unit count to either the Acquisition (in-place)
+ * or Stabilized (market) rent field. target = 'acq' | 'stab'. */
+function rrApply(target) {
   const s = rrSum();
   if (s.totalUnits <= 0) return;
   const uc = document.getElementById('unitcount');
-  const rentEl = document.getElementById('rent');
   if (uc) uc.value = s.totalUnits;
-  if (rentEl) rentEl.value = s.totalRent;
+  if (target === 'stab') {
+    const rs = document.getElementById('rentstab');
+    if (rs) { rs.value = s.totalRent; rs.dataset.touched = '1'; }
+  } else {
+    const rentEl = document.getElementById('rent');
+    if (rentEl) rentEl.value = s.totalRent;
+  }
   const isCommercial = s.totalUnits >= 5;
   const dp = document.getElementById('dp');
   if (isCommercial && !_prevCommercial && dp && (parseFloat(dp.value) || 0) < 25) dp.value = 25;
   _prevCommercial = isCommercial;
   applyCommercialMode(isCommercial);
   calc();
+}
+
+/* CapEx reserve toggle: $/unit/yr ↔ % of gross income (keeps the $ amount ~constant) */
+function toggleCapexRes() {
+  const btn = document.getElementById('capexres-toggle');
+  const inp = document.getElementById('capexreserve');
+  const cur = parseFloat(inp.value) || 0;
+  const units = getUnits();
+  const gi = (parseFloat((document.getElementById('rent') || {}).value) || 0) +
+             (parseFloat((document.getElementById('other_income') || {}).value) || 0);
+  if (capexResMode === 'unit') {
+    capexResMode = 'pct';
+    const monthly = units * cur / 12;
+    inp.value = gi > 0 ? Number((monthly / gi * 100).toFixed(2)) : 0;
+    btn.textContent = '% of income';
+  } else {
+    capexResMode = 'unit';
+    const monthly = gi * cur / 100;
+    inp.value = units > 0 ? Math.round(monthly * 12 / units) : 0;
+    btn.textContent = '$/unit/yr';
+  }
+  calc();
+}
+
+/* Acquisition loan amortization (yrs) — what the refi defaults to until changed */
+function acqAmortYears() {
+  const lt = (document.getElementById('loan_type') || {}).value;
+  if (lt === 'seller') return parseFloat((document.getElementById('sf-amort') || {}).value) || 30;
+  if (getUnits() >= 5)  return parseFloat((document.getElementById('comm-amort') || {}).value) || 25;
+  return 30;
+}
+
+function syncRefiAmort() {
+  const r = document.getElementById('refiamort');
+  if (r && r.dataset.touched !== '1') r.value = acqAmortYears();
+}
+
+function syncStabRent() {
+  const rs = document.getElementById('rentstab');
+  const r  = document.getElementById('rent');
+  if (rs && r && rs.dataset.touched !== '1') rs.value = r.value;
 }
 
 /* ─── Toggle helpers ──────────────────────────────────────── */
@@ -698,6 +769,8 @@ function updateLoanType() {
 /* ─── Main calculator ─────────────────────────────────────── */
 function calc() {
   const cfg = window.PLAYBOOK_CONFIG;
+  syncRefiAmort();   // keep refi amortization matched to acquisition until user overrides
+  syncStabRent();    // keep stabilized rent tracking in-place rent until user overrides
 
   const units            = getUnits();
   const isCommercial     = units >= 5;
@@ -773,12 +846,12 @@ function calc() {
   const monthlyTax  = assessedVal * (cfg.mills / 1000) / 12;
 
   // Income & expenses
-  const capexReserveAnnual  = parseFloat((document.getElementById('capexreserve') || {}).value) || 0;
-  const capexReserveMonthly = units * capexReserveAnnual / 12;
-  const utilitiesMonthly    = parseFloat((document.getElementById('utilities') || {}).value) || 0;
   const grossIncome      = rentGross + otherIncome;
   const egi              = grossIncome * (1 - vacPct / 100);
   const pmFee            = egi * (pmPct / 100);
+  const capexResRaw         = parseFloat((document.getElementById('capexreserve') || {}).value) || 0;
+  const capexReserveMonthly = capexResMode === 'pct' ? grossIncome * capexResRaw / 100 : units * capexResRaw / 12;
+  const utilitiesMonthly    = parseFloat((document.getElementById('utilities') || {}).value) || 0;
   const totalExp         = monthlyTax + insMonthly + capexMonthly + otherMonthly + pmFee + pmiMonthly + capexReserveMonthly + utilitiesMonthly;
   const operatingExpPct  = egi > 0 ? totalExp / egi * 100 : 0;
   const noi              = egi - totalExp;
@@ -825,7 +898,7 @@ function calc() {
      v: fmt(pi + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                                    c:'',                      key:true},
     {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
     {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
-    ...(capexReserveMonthly > 0 ? [{l:'CapEx Reserve (' + fmt(capexReserveAnnual) + '/unit/yr)', v:fmt(capexReserveMonthly) + '/mo', c:'', key:false}] : []),
+    ...(capexReserveMonthly > 0 ? [{l:'CapEx Reserve (' + (capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr') + ')', v:fmt(capexReserveMonthly) + '/mo', c:'', key:false}] : []),
     ...(utilitiesMonthly > 0 ? [{l:'Owner-Paid Utilities', v:fmt(utilitiesMonthly) + '/mo', c:'', key:false}] : []),
     {l:pmManaged ? 'PM Fee (' + pmPct + '% of EGI)' : 'PM Fee (Self-Managed)', v:fmt(pmFee) + '/mo',  c:pmManaged ? 'bad' : 'good', key:false},
     {l:'Total Monthly Expenses',                      v:fmt(totalExp) + '/mo',                                     c:'',                      key:false},
@@ -964,27 +1037,45 @@ function calc() {
     </div>`;
   }
 
+  /* ── Stabilized NOI & estimated ARV (feeds refi/BRRRR) ── */
+  const rentStab     = parseFloat((document.getElementById('rentstab') || {}).value) || rentGross;
+  const stabGross    = rentStab + otherIncome;
+  const stabEGI      = stabGross * (1 - vacPct / 100);
+  const stabPM       = stabEGI * (pmPct / 100);
+  const stabRepairs  = rentStab * capexPct / 100;
+  const stabOther    = otherMode === 'pct' ? rentStab * otherInput / 100 : otherMonthly;
+  const stabCapexRes = capexResMode === 'pct' ? stabGross * capexResRaw / 100 : units * capexResRaw / 12;
+  const stabTotalExp = monthlyTax + insMonthly + stabPM + stabRepairs + stabOther + pmiMonthly + stabCapexRes + utilitiesMonthly;
+  const stabNOI_yr   = (stabEGI - stabTotalExp) * 12;
+  const arvCapRate   = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
+  const estimatedARV = arvCapRate > 0 ? stabNOI_yr / arvCapRate : 0;
+  const manualARV    = parseFloat((document.getElementById('arv') || {}).value) || 0;
+  const arvUsed      = manualARV > 0 ? manualARV : estimatedARV;
+  const isValueAdd   = Math.abs(rentStab - rentGross) > 0.5;
+
   /* ── Refinance / BRRRR exit (#5) ── */
-  const arv = parseFloat((document.getElementById('arv') || {}).value) || 0;
-  if (arv > 0 && !isCash) {
-    const refiLtv     = (parseFloat((document.getElementById('refiltv')   || {}).value) || 75) / 100;
-    const refiRateMo  = (parseFloat((document.getElementById('refirate')  || {}).value) || 7.5) / 100 / 12;
-    const refiAmortYr = parseFloat((document.getElementById('refiamort')  || {}).value) || 30;
-    const newLoan     = arv * refiLtv;
+  if ((manualARV > 0 || isValueAdd) && arvUsed > 0 && !isCash) {
+    const refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
+    const refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
+    const refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
+    const newLoan     = arvUsed * refiLtv;
     const cashOut     = newLoan - loan;
     const cashLeftIn  = cashToClose - cashOut;
     const newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
-    const postCF      = noi - newPI;
+    const postCF      = stabNOI_yr / 12 - newPI;
     const postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
       <div class="ctc-header">Refinance / BRRRR Exit</div>
-      <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ${fmt(arv)} ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
+      <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI_yr)}/yr</span></div>
+      ${arvCapRate > 0 ? `<div class="result-row"><span class="result-label">Estimated ARV (NOI ÷ ${(arvCapRate * 100).toFixed(2)}% cap)</span><span class="result-value">${fmt(estimatedARV)}</span></div>` : ''}
+      <div class="result-row key"><span class="result-label">ARV Used${manualARV > 0 ? ' (manual override)' : ' (estimate)'}</span><span class="result-value">${fmt(arvUsed)}</span></div>
+      <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
       <div class="result-row"><span class="result-label">Cash-Out (new loan − current loan)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
       <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
       <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
-      <div class="result-row"><span class="result-label">Post-Refi Cash Flow</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Post-Refi Cash Flow (stabilized)</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
-      <div class="note">BRRRR check: refinance at ARV to recover capital. Cash left in ≤ $0 means an effectively infinite cash-on-cash return.</div>
+      <div class="note">ARV = stabilized NOI ÷ market cap rate (enter a manual ARV to override, e.g. from comps). Post-refi cash flow uses stabilized rents. Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
   }
 
