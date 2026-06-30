@@ -185,8 +185,8 @@
           '<div class="ctc-header">Operating Detail</div>' +
           '<div class="input-row"><label>CapEx Reserve</label>' +
             '<div class="input-with-toggle">' +
-              '<input type="number" id="capexreserve" value="0" oninput="calc()">' +
-              '<button type="button" class="toggle-btn" id="capexres-toggle" onclick="toggleCapexRes()">$/unit/yr</button>' +
+              '<input type="number" id="capexreserve" value="5" oninput="calc()">' +
+              '<button type="button" class="toggle-btn" id="capexres-toggle" onclick="toggleCapexRes()">% of income</button>' +
             '</div>' +
             '<div class="hint">Big-ticket sinking fund (roof/HVAC) — separate from Repairs. Toggle $/unit/yr or % of income (≈5–10% typical)</div></div>' +
           '<div class="input-row"><label>Owner-Paid Utilities ($/mo)</label>' +
@@ -481,7 +481,7 @@
 let insMode      = 'yr';
 let otherMode    = 'pct';
 let pmManaged    = true;
-let capexResMode = 'unit';   /* 'unit' = $/unit/yr · 'pct' = % of gross income */
+let capexResMode = 'pct';    /* 'unit' = $/unit/yr · 'pct' = % of gross income (default 5%) */
 let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
 
