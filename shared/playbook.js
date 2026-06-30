@@ -83,6 +83,59 @@
     }
   }
 
+  /* 2a — Number-of-Units control (replaces the duplex/triplex/quad dropdown)
+   *      Lets the user model any unit count. 5+ units flips the calculator
+   *      into commercial mode: 25% down default, ~25-yr amortization,
+   *      ≥1.25× DSCR target, and FHA/residential-conventional gated out. */
+  const ptypeSel = document.getElementById('ptype');
+  if (ptypeSel) {
+    const ptypeRow   = ptypeSel.closest('.input-row');
+    const startUnits = ptypeSel.value === 'triplex' ? 3 : ptypeSel.value === 'quad' ? 4 : 2;
+    ptypeSel.style.display = 'none';
+
+    if (ptypeRow) {
+      const lbl = ptypeRow.querySelector('label');
+      if (lbl) lbl.textContent = 'Number of Units';
+
+      const wrap = document.createElement('div');
+      wrap.innerHTML =
+        '<input type="number" id="unitcount" min="1" step="1" value="' + startUnits + '" oninput="onUnitsChange()">' +
+        '<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">' +
+          '<button type="button" class="toggle-btn" style="flex:1;min-width:58px;padding:5px 4px;font-size:11px;" onclick="setUnits(2)">Duplex</button>' +
+          '<button type="button" class="toggle-btn" style="flex:1;min-width:58px;padding:5px 4px;font-size:11px;" onclick="setUnits(3)">Triplex</button>' +
+          '<button type="button" class="toggle-btn" style="flex:1;min-width:58px;padding:5px 4px;font-size:11px;" onclick="setUnits(4)">Quad</button>' +
+          '<button type="button" class="toggle-btn" style="flex:1;min-width:58px;padding:5px 4px;font-size:11px;" onclick="setUnits(5)">5+ Comm.</button>' +
+        '</div>' +
+        '<div class="hint">2–4 units = residential financing &nbsp;·&nbsp; 5+ units = commercial</div>' +
+        '<div class="hint" id="commercial-note" style="display:none;color:var(--gold-light);margin-top:6px;line-height:1.5;"></div>';
+      ptypeRow.appendChild(wrap);
+    }
+
+    // Commercial amortization field — shown only in commercial mode (after the Interest Rate row)
+    const rateEl = document.getElementById('rate');
+    if (rateEl && rateEl.closest('.input-row')) {
+      const commRow = document.createElement('div');
+      commRow.className = 'input-row';
+      commRow.id = 'comm-amort-row';
+      commRow.style.display = 'none';
+      commRow.innerHTML =
+        '<label>Amortization (yrs) — Commercial</label>' +
+        '<input type="number" id="comm-amort" value="25" oninput="calc()">' +
+        '<div class="hint">Commercial loans typically amortize over 20–25 yrs (vs. 30 residential)</div>';
+      rateEl.closest('.input-row').insertAdjacentElement('afterend', commRow);
+    }
+
+    // Update the Monthly Gross Rent hint to reflect per-unit auto-fill
+    const rentEl0 = document.getElementById('rent');
+    if (rentEl0 && rentEl0.closest('.input-row')) {
+      const rh = rentEl0.closest('.input-row').querySelector('.hint');
+      if (rh) rh.textContent = 'Auto-fills from unit count (≈ $' + Math.round(perUnitRent()) + '/unit); edit to your actual rent roll';
+    }
+
+    // Set initial residential/commercial state
+    applyCommercialMode(startUnits >= 5);
+  }
+
   /* 3 — Loans tab + panel (appended after last existing panel) */
   const tabsInner = document.querySelector('.tabs-inner');
   if (tabsInner) {
@@ -337,6 +390,88 @@ function setRentDefault() {
   calc();
 }
 
+/* ─── Unit count / commercial mode ────────────────────────── */
+let _prevCommercial = false;
+
+function getUnits() {
+  const el = document.getElementById('unitcount');
+  if (el) { const n = parseInt(el.value, 10); if (n >= 1) return n; }
+  const pt = document.getElementById('ptype');
+  const v = pt ? pt.value : 'duplex';
+  return v === 'triplex' ? 3 : v === 'quad' ? 4 : 2;
+}
+
+function perUnitRent() {
+  const d = (window.PLAYBOOK_CONFIG || {}).rentDefaults || {};
+  return d.perUnit || (d.duplex ? d.duplex / 2 : 1000);
+}
+
+function unitsRentDefault(units) {
+  const d = (window.PLAYBOOK_CONFIG || {}).rentDefaults || {};
+  if (units === 2 && d.duplex)  return d.duplex;
+  if (units === 3 && d.triplex) return d.triplex;
+  if (units === 4 && d.quad)    return d.quad;
+  return Math.round(units * perUnitRent());
+}
+
+function setUnits(n) {
+  const el = document.getElementById('unitcount');
+  if (el) el.value = n;
+  onUnitsChange();
+}
+
+function onUnitsChange() {
+  const units = getUnits();
+  const isCommercial = units >= 5;
+  const rentEl = document.getElementById('rent');
+  if (rentEl) rentEl.value = unitsRentDefault(units);
+  // On first crossing into commercial, default down payment up to 25%
+  const dp = document.getElementById('dp');
+  if (isCommercial && !_prevCommercial && dp && (parseFloat(dp.value) || 0) < 25) {
+    dp.value = 25;
+  }
+  _prevCommercial = isCommercial;
+  applyCommercialMode(isCommercial);
+  calc();
+}
+
+/* Toggle residential vs. commercial UI: amortization field, loan-type
+ * gating (FHA & residential conventional cap at 4 units), and the note. */
+function applyCommercialMode(isCommercial) {
+  const lt = document.getElementById('loan_type');
+  const sellerSelected = lt && lt.value === 'seller';
+
+  const commRow = document.getElementById('comm-amort-row');
+  if (commRow) commRow.style.display = (isCommercial && !sellerSelected) ? '' : 'none';
+
+  if (lt) {
+    const convOpt = lt.querySelector('option[value="conv"]');
+    const fhaOpt  = lt.querySelector('option[value="fha"]');
+    const dscrOpt = lt.querySelector('option[value="dscr"]');
+    if (convOpt) convOpt.disabled = isCommercial;
+    if (fhaOpt)  fhaOpt.disabled  = isCommercial;
+    if (dscrOpt) dscrOpt.textContent = isCommercial
+      ? 'DSCR / Commercial — Investor loan · 25%+ down · No PMI'
+      : 'DSCR — Investor loan · 20%+ down · No PMI';
+    // If a now-invalid residential type is selected, switch to DSCR/commercial
+    if (isCommercial && (lt.value === 'conv' || lt.value === 'fha')) {
+      lt.value = 'dscr';
+      const rateEl = document.getElementById('rate');
+      if (rateEl) rateEl.value = 8.50;
+      const dpEl = document.getElementById('dp');
+      if (dpEl && (parseFloat(dpEl.value) || 0) < 25) dpEl.value = 25;
+    }
+  }
+
+  const note = document.getElementById('commercial-note');
+  if (note) {
+    note.style.display = isCommercial ? '' : 'none';
+    if (isCommercial) {
+      note.innerHTML = '🏢 <strong>Commercial (5+ units):</strong> financed as a commercial/DSCR loan — FHA &amp; residential conventional don’t apply above 4 units. 25% down typical, ~25-yr amortization, lenders want ≥1.25× DSCR. Value is driven by NOI ÷ cap rate, not residential comps.';
+    }
+  }
+}
+
 /* ─── Toggle helpers ──────────────────────────────────────── */
 function toggleIns() {
   const btn = document.getElementById('ins-toggle');
@@ -386,9 +521,10 @@ function updateLoanType() {
   const rate = document.getElementById('rate');
   const dp   = document.getElementById('dp');
   // Suggest rate defaults per loan type (user can still override)
+  const commercial = getUnits() >= 5;
   if      (lt === 'conv')   { rate.value = 6.875; }
   else if (lt === 'fha')    { rate.value = 6.125; dp.value = 3.5; }
-  else if (lt === 'dscr')   { rate.value = 8.50;  dp.value = 20;  }
+  else if (lt === 'dscr')   { rate.value = 8.50;  dp.value = commercial ? 25 : 20; }
   else if (lt === 'cash')   { rate.value = 0;     dp.value = 100; }
   else if (lt === 'seller') { rate.value = 7.5;   dp.value = 10;  }
   // Show/hide seller finance rows
@@ -396,6 +532,7 @@ function updateLoanType() {
   const sfBalloonRow = document.getElementById('sf-balloon-row');
   if (sfAmortRow)   sfAmortRow.style.display   = lt === 'seller' ? '' : 'none';
   if (sfBalloonRow) sfBalloonRow.style.display = lt === 'seller' ? '' : 'none';
+  applyCommercialMode(commercial);
   calc();
 }
 
@@ -403,7 +540,9 @@ function updateLoanType() {
 function calc() {
   const cfg = window.PLAYBOOK_CONFIG;
 
-  const ptype            = document.getElementById('ptype').value;
+  const units            = getUnits();
+  const isCommercial     = units >= 5;
+  const dscrMin          = isCommercial ? 1.25 : 1.20;
   const pp               = parseFloat(document.getElementById('pp').value) || 0;
   const dpPct            = parseFloat(document.getElementById('dp').value) || 20;
   const rate             = parseFloat(document.getElementById('rate').value) || 7.75;
@@ -432,8 +571,11 @@ function calc() {
   const loan = pp - dp;
   const mr   = rate / 100 / 12;
   // Seller finance: use custom amort period; all others: standard 30-yr (360 mo)
-  const sfAmortYrs  = parseFloat((document.getElementById('sf-amort')  || {}).value) || 30;
-  const amortMonths = loanType === 'seller' ? sfAmortYrs * 12 : 360;
+  const sfAmortYrs   = parseFloat((document.getElementById('sf-amort')  || {}).value) || 30;
+  const commAmortYrs = parseFloat((document.getElementById('comm-amort') || {}).value) || 25;
+  const amortMonths  = loanType === 'seller' ? sfAmortYrs * 12
+                     : isCommercial          ? commAmortYrs * 12
+                     : 360;
   const pi   = isCash ? 0
              : (mr > 0 ? loan * (mr * Math.pow(1 + mr, amortMonths)) / (Math.pow(1 + mr, amortMonths) - 1) : 0);
 
@@ -488,7 +630,6 @@ function calc() {
   const coc            = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
   const dscr           = pi > 0 ? noi / pi : 0;
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
-  const units          = ptype === 'duplex' ? 2 : ptype === 'triplex' ? 3 : 4;
   const pricePerUnit   = units ? pp / units : 0;
 
   // Helpers
@@ -501,7 +642,9 @@ function calc() {
   const rows = [
     {l:'Purchase Price',                              v:fmt(pp),                                                   c:'',                      key:false},
     {l:'Down Payment (' + dpPct + '%)',               v:fmt(dp),                                                   c:'',                      key:false},
+    ...((isCommercial && dpPct < 25) ? [{l:'⚠ Down Payment Below Commercial Min', v:'25% typical for 5+ units', c:'bad', key:true}] : []),
     {l:'Loan Amount',                                 v:fmt(loan),                                                 c:'',                      key:false},
+    ...(isCommercial ? [{l:'Financing Basis', v:'Commercial · ' + commAmortYrs + '-yr amort · DSCR ≥1.25×', c:'', key:false}] : []),
     {l:'Monthly P&I',                                 v:fmt(pi) + '/mo',                                           c:'',                      key:false},
     {l:'Tax Estimate (CLR-modeled)',                  v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
     ...(pmiMonthly > 0 ? [{
@@ -528,7 +671,7 @@ function calc() {
     {l:'Annual Cash Flow',                            v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr',          c:cls(cf * 12, 1800 * units, 0), key:false},
     {l:'Cap Rate (' + (pmManaged ? 'PM-adjusted' : 'Self-managed') + ')', v:fmtPct(capRate),           c:cls(capRate, 8, 6.5),    key:true},
     {l:'Cash-on-Cash Return',                         v:fmtPct(coc),                                               c:cls(coc, 7, 4),          key:true},
-    {l:'DSCR',                                        v:dscr.toFixed(2) + 'x',                                     c:cls(dscr, 1.2, 1.0),     key:true},
+    {l:'DSCR' + (isCommercial ? ' (commercial ≥1.25×)' : ''), v:dscr.toFixed(2) + 'x',                            c:cls(dscr, dscrMin, isCommercial ? 1.05 : 1.0), key:true},
     {l:'Price Per Unit',                              v:fmt(pricePerUnit),                                         c:'',                      key:false},
     {l:'Gross Rent Multiplier',                       v:grm.toFixed(1) + 'x (target ≤10)',                        c:grm <= 10 ? 'good' : grm <= 12 ? 'warn' : 'bad', key:false}
   ];
@@ -539,7 +682,7 @@ function calc() {
 
   // Verdict
   let verdict = '', color = '';
-  if (capRate >= 8 && coc >= 7 && dscr >= 1.2 && cf >= 150 * units) {
+  if (capRate >= 8 && coc >= 7 && dscr >= dscrMin && cf >= 150 * units) {
     verdict = '🟢 STRONG DEAL — Meets ' + (pmManaged ? 'PM-adjusted' : 'self-managed') + ' ' + cfg.locationName + ' benchmarks';
     color = 'var(--green-light)';
   } else if (capRate >= 6.5 && dscr >= 1.0 && cf > 0) {
