@@ -204,6 +204,15 @@
           '<div class="input-row"><label>Selling Costs (% of sale)</label><input type="number" id="sellcost" value="6.5" oninput="calc()"></div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Seller Credit (optional)</div>' +
+          '<div class="input-row"><label>Seller Credit ($)</label>' +
+            '<input type="number" id="sellercredit" value="0" oninput="calc()">' +
+            '<div class="hint">Money the seller gives at closing. Price &amp; loan don\'t change — this only lowers the cash you bring</div></div>' +
+          '<div class="input-row"><label>Credit Use</label>' +
+            '<button type="button" class="toggle-btn" id="sellercredit-toggle" style="width:100%;text-align:center;" onclick="toggleSellerCredit()">Escrowed for Repairs</button>' +
+            '<div class="hint">Escrowed for Repairs (e.g. a sewer holdback) vs. Toward Closing Costs. Both cut cash to close; the lender limits differ</div></div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Rehab Financing (optional)</div>' +
           '<div class="input-row"><label>Finance the Rehab?</label>' +
             '<button type="button" class="toggle-btn" id="rehabfin-toggle" style="width:100%;text-align:center;" onclick="toggleRehabFin()">No — Rehab Paid in Cash</button>' +
@@ -242,6 +251,10 @@
             '<button type="button" class="toggle-btn" style="flex:1;text-align:center;" onclick="rrApply(\'stab\')">→ Stabilized</button>' +
           '</div>' +
           '<div class="hint">Build the unit mix, then send the total to Acquisition (in-place) or Stabilized (market) rents &amp; unit count</div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<button type="button" class="toggle-btn" style="width:100%;text-align:center;padding:9px;" onclick="exportCalcCSV()">⬇ Export to Spreadsheet (CSV)</button>' +
+          '<div class="hint">Downloads every input and result as a .csv you can open in Excel / Google Sheets and share</div>' +
         '</div>';
       calcInputs.appendChild(ext);
 
@@ -482,6 +495,7 @@ let insMode      = 'yr';
 let otherMode    = 'pct';
 let pmManaged    = true;
 let capexResMode = 'pct';    /* 'unit' = $/unit/yr · 'pct' = % of gross income (default 5%) */
+let sellerCreditMode = 'repairs';  /* 'repairs' = escrowed repair holdback · 'closing' = toward closing costs */
 let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
 
@@ -717,6 +731,14 @@ function toggleCapexRes() {
   calc();
 }
 
+/* Seller credit use: escrowed for repairs ↔ toward closing costs (drives which lender limit applies) */
+function toggleSellerCredit() {
+  sellerCreditMode = sellerCreditMode === 'repairs' ? 'closing' : 'repairs';
+  const btn = document.getElementById('sellercredit-toggle');
+  if (btn) btn.textContent = sellerCreditMode === 'repairs' ? 'Escrowed for Repairs' : 'Toward Closing Costs';
+  calc();
+}
+
 /* Acquisition loan amortization (yrs) — what the refi defaults to until changed */
 function acqAmortYears() {
   const lt = (document.getElementById('loan_type') || {}).value;
@@ -937,9 +959,14 @@ function calc() {
   const cf               = noi - pi - rehabPI;
 
   // Returns — financed rehab leaves Cash to Close; rehab loan adds to debt service
-  const closingCostAmt = pp * closingCostPct / 100;
-  const cashToClose    = dp + closingCostAmt + (rehab - rehabLoan) + fhaUpfrontMip;
-  const coc            = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
+  const closingCostAmt   = pp * closingCostPct / 100;
+  // Seller credit: purchase price & loan are unchanged — it just reduces the cash you bring.
+  const sellerCredit     = parseFloat((document.getElementById('sellercredit') || {}).value) || 0;
+  const cashBeforeCredit = dp + closingCostAmt + (rehab - rehabLoan) + fhaUpfrontMip;
+  const creditApplied    = Math.max(0, Math.min(sellerCredit, cashBeforeCredit)); // no cash back at closing
+  const creditExcess     = sellerCredit - creditApplied;                          // disallowed → should be a price cut
+  const cashToClose      = cashBeforeCredit - creditApplied;
+  const coc              = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
   const dscr           = (pi + rehabPI) > 0 ? noi / (pi + rehabPI) : 0;
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
   const pricePerUnit   = units ? pp / units : 0;
@@ -1069,11 +1096,39 @@ function calc() {
     ${rehab > 0 ? `<div class="result-row"><span class="result-label">Rehab Budget</span><span class="result-value">${fmt(rehab)}</span></div>` : ''}
     ${rehabLoan > 0 ? `<div class="result-row"><span class="result-label">Less: Rehab Financed (${(rehabFinPct * 100).toFixed(0)}%)</span><span class="result-value good">-${fmt(rehabLoan)}</span></div>` : ''}
     ${fhaUpfrontMip > 0 ? `<div class="result-row"><span class="result-label">FHA Upfront MIP (1.75%)</span><span class="result-value bad">${fmt(fhaUpfrontMip)}</span></div>` : ''}
+    ${creditApplied > 0 ? `<div class="result-row"><span class="result-label">Less: Seller Credit (${sellerCreditMode === 'repairs' ? 'repair escrow' : 'toward closing'})</span><span class="result-value good">-${fmt(creditApplied)}</span></div>` : ''}
     <div class="result-row key"><span class="result-label">Total Cash to Close</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
-    <div class="note">CoC return calculated on total cash invested (down + closing + ${rehabLoan > 0 ? 'unfinanced rehab' : 'rehab'}${fhaUpfrontMip > 0 ? ' + FHA upfront MIP' : ''}).${rehabLoan > 0 ? ' Financed rehab ' + fmt(rehabLoan) + ' is carried as a separate loan, not cash.' : ''}</div>
+    ${sellerCredit > 0 && sellerCreditMode === 'repairs' && sellerCredit > rehab ? `<div class="result-row"><span class="result-label">⚠ Credit exceeds rehab budget</span><span class="result-value warn">A repair escrow can't exceed the repair scope (${fmt(rehab)})</span></div>` : ''}
+    ${sellerCredit > 0 && sellerCreditMode === 'closing' && sellerCredit > closingCostAmt ? `<div class="result-row"><span class="result-label">⚠ Credit exceeds closing costs</span><span class="result-value warn">'Toward closing' is capped at your actual costs (${fmt(closingCostAmt)})</span></div>` : ''}
+    ${sellerCredit > 0 && sellerCreditMode === 'closing' && pp > 0 && sellerCredit > pp * 0.03 ? `<div class="result-row"><span class="result-label">⚠ Credit above ~3% of price</span><span class="result-value warn">${(sellerCredit / pp * 100).toFixed(1)}% — often over investor seller-credit caps; confirm with lender</span></div>` : ''}
+    ${creditExcess > 0 ? `<div class="result-row"><span class="result-label">⚠ Excess credit unusable</span><span class="result-value bad">${fmt(creditExcess)} would be cash back — not allowed; re-trade it as a price reduction</span></div>` : ''}
+    <div class="note">CoC return calculated on total cash invested (down + closing + ${rehabLoan > 0 ? 'unfinanced rehab' : 'rehab'}${fhaUpfrontMip > 0 ? ' + FHA upfront MIP' : ''}${creditApplied > 0 ? ' − seller credit' : ''}).${rehabLoan > 0 ? ' Financed rehab ' + fmt(rehabLoan) + ' is carried as a separate loan, not cash.' : ''}${creditApplied > 0 ? ' The credit lowers your cash in (lifts cash-on-cash) but leaves price, loan, cap rate & DSCR unchanged.' : ''}</div>
     ${loanType === 'seller' && balloonBalance > 0 ? `<div class="result-row" style="margin-top:8px;"><span class="result-label">⚠ Balloon Balance — Yr ${sfBalloonYrs} (future obligation, not today's cost)</span><span class="result-value bad">${fmt(balloonBalance)}</span></div>` : ''}
     ${loanType === 'seller' ? `<div class="note" style="margin-top:6px;">Seller Finance: No PMI/MIP regardless of down payment. Rate and terms set by seller negotiation. Dodd-Frank ability-to-repay rules apply for owner-occupied properties.</div>` : ''}
   </div>`;
+
+  /* ── Equity margin — all-in vs. ARV (the overpay guard) ── */
+  if ((rehab > 0 || manualARV > 0 || isValueAdd) && arvUsed > 0) {
+    const allInCost   = pp + rehab + closingCostAmt;          // total to acquire + fix (before any credit)
+    const allInPctARV = allInCost / arvUsed * 100;
+    const equityAtARV = arvUsed - allInCost;
+    const netBasis    = allInCost - creditApplied;            // your basis after the seller's help
+    let mVerdict, mColor;
+    if (allInPctARV <= 75)       { mVerdict = '🟢 Strong margin — meets the 70–75% BRRRR rule'; mColor = 'var(--green-light)'; }
+    else if (allInPctARV <= 85)  { mVerdict = '🟡 Thin margin — small equity cushion'; mColor = '#e09a40'; }
+    else if (allInPctARV <= 100) { mVerdict = '🟠 Minimal margin — little equity created for the risk'; mColor = '#e09a40'; }
+    else                         { mVerdict = "🔴 Underwater — all-in exceeds ARV. A seller credit won't fix an overpay; re-trade the price or walk"; mColor = '#e07070'; }
+    html += `<div style="margin-top:12px;border:1px solid ${mColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
+      <div class="ctc-header" style="color:${mColor};">Equity Margin — All-In vs. ARV</div>
+      <div class="result-row"><span class="result-label">All-In Cost (price + rehab + closing)</span><span class="result-value">${fmt(allInCost)}</span></div>
+      <div class="result-row"><span class="result-label">ARV Used${manualARV > 0 ? ' (manual)' : ' (estimate)'}</span><span class="result-value">${fmt(arvUsed)}</span></div>
+      <div class="result-row key"><span class="result-label">All-In as % of ARV</span><span class="result-value ${allInPctARV <= 75 ? 'good' : allInPctARV <= 100 ? 'warn' : 'bad'}">${allInPctARV.toFixed(1)}%</span></div>
+      <div class="result-row"><span class="result-label">Equity Created at ARV (ARV − all-in)</span><span class="result-value ${equityAtARV < 0 ? 'bad' : 'good'}">${(equityAtARV < 0 ? '-' : '') + fmt(equityAtARV)}</span></div>
+      ${creditApplied > 0 ? `<div class="result-row"><span class="result-label">Your Net Basis (after ${fmt(creditApplied)} credit)</span><span class="result-value">${fmt(netBasis)}</span></div>` : ''}
+      <div class="verdict" style="border-color:${mColor};color:${mColor};">${mVerdict}</div>
+      <div class="note">All-in is price + rehab + closing (carry not included). The 70–75% rule keeps an equity cushion for the refi.${creditApplied > 0 ? " A seller credit lowers your cash basis (better cash-on-cash) but not the property's cost to build — the % above is the honest overpay test." : ''}</div>
+    </div>`;
+  }
 
   /* ── Lender sizing — max offer at target DSCR (#2) ── */
   if (!isCash && pi > 0 && noi_yr > 0) {
@@ -1224,6 +1279,73 @@ function buildChecklist(id, items) {
 function toggleCheck(el) {
   const ic = el.querySelector('.flag-icon');
   ic.textContent = ic.textContent === '⬜' ? '✅' : '⬜';
+}
+
+/* ─── Export current deal (all inputs + computed results) to CSV ───
+ * Reads the rendered DOM so the export always matches what's on screen,
+ * including seller credit, equity margin, refi, and the projection table. */
+function exportCalcCSV() {
+  if (typeof calc === 'function') { try { calc(); } catch (e) {} }
+  const cfg = window.PLAYBOOK_CONFIG || {};
+  function cell(s) {
+    s = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  const rows = [];
+  rows.push(['Pittsburgh Market Hub — Deal Export']);
+  rows.push(['Location', cfg.locationName || '']);
+  rows.push(['Exported', new Date().toLocaleString()]);
+  rows.push([]);
+  rows.push(['Section', 'Field', 'Value']);
+
+  // Inputs (labels + current values, plus any mode-toggle state on the row)
+  const wrap = document.querySelector('.calc-inputs');
+  if (wrap) {
+    wrap.querySelectorAll('.input-row').forEach(function (row) {
+      const lbl = row.querySelector('label');
+      if (!lbl) return;
+      const inp = row.querySelector('input, select');
+      const tgl = row.querySelector('.toggle-btn');
+      if (inp) {
+        let v = (inp.tagName === 'SELECT' && inp.selectedOptions[0]) ? inp.selectedOptions[0].textContent : inp.value;
+        if (tgl) v = v + ' (' + tgl.textContent + ')';
+        rows.push(['Input', lbl.textContent, v]);
+      } else if (tgl) {
+        rows.push(['Input', lbl.textContent, tgl.textContent]);
+      }
+    });
+  }
+
+  // Results (in document order, grouped by the section headers)
+  const res = document.getElementById('results');
+  if (res) {
+    let section = 'Deal Metrics';
+    res.querySelectorAll('.ctc-header, .result-row, .verdict, .data-table').forEach(function (el) {
+      if (el.matches('.ctc-header')) { section = el.textContent; }
+      else if (el.matches('.verdict')) { rows.push([section, 'Verdict', el.textContent]); }
+      else if (el.matches('.data-table')) {
+        const heads = [].map.call(el.querySelectorAll('thead th'), function (th) { return th.textContent; });
+        el.querySelectorAll('tbody tr').forEach(function (tr) {
+          const c = [].map.call(tr.querySelectorAll('td'), function (td) { return td.textContent; });
+          const detail = heads.slice(1).map(function (h, i) { return h + ': ' + (c[i + 1] || ''); }).join(' | ');
+          rows.push([section, (heads[0] || 'Row') + ' ' + (c[0] || ''), detail]);
+        });
+      } else {
+        const l = el.querySelector('.result-label'), v = el.querySelector('.result-value');
+        if (l && v) rows.push([section, l.textContent, v.textContent]);
+      }
+    });
+  }
+
+  const csv = rows.map(function (r) { return r.map(cell).join(','); }).join('\r\n');
+  const loc = (cfg.locationName || 'deal').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'deal';
+  const fname = 'deal_' + loc + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM so Excel reads UTF-8
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
 /* ─── Loan Calculator helpers ─────────────────────────── */
