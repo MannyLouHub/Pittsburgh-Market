@@ -968,6 +968,7 @@ function calc() {
   const cashToClose      = cashBeforeCredit - creditApplied;
   const coc              = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
   const dscr           = (pi + rehabPI) > 0 ? noi / (pi + rehabPI) : 0;
+  const gsi_yr         = grossIncome * 12;                          // Gross Scheduled Income — rent + other income, before vacancy
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
   const pricePerUnit   = units ? pp / units : 0;
 
@@ -987,6 +988,7 @@ function calc() {
   const stabCapRate   = pp > 0 ? stabNOI_yr / pp * 100 : 0;
   const stabCoC       = cashToClose > 0 ? stabCF * 12 / cashToClose * 100 : 0;
   const stabDSCR      = (pi + rehabPI) > 0 ? stabNOI / (pi + rehabPI) : 0;
+  const grmStab       = rentStab > 0 ? pp / (rentStab * 12) : 0;
   const arvCapRate    = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
   const estimatedARV  = arvCapRate > 0 ? stabNOI_yr / arvCapRate : 0;
   const manualARV     = parseFloat((document.getElementById('arv') || {}).value) || 0;
@@ -1019,6 +1021,7 @@ function calc() {
       c: 'bad', key: true
     }] : []),
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
+    {l:'Gross Scheduled Income (GSI)',                 v:fmt(grossIncome) + '/mo · ' + fmt(gsi_yr) + '/yr',        c:'',                      key:false},
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
     {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)' : 'Total Monthly Payment — PITI' + (pmiMonthly > 0 ? ' + PMI/MIP' : '') + (rehabPI > 0 ? ' + Rehab' : ''),
      v: fmt(pi + rehabPI + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                          c:'',                      key:true},
@@ -1077,6 +1080,8 @@ function calc() {
     html += `<div style="margin-top:12px;border:1px solid ${sColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
       <div class="ctc-header" style="color:${sColor};">Stabilized Deal — at Market Rents (${rentLift >= 0 ? '+' : ''}${rentLift.toFixed(0)}% vs. in-place)</div>
       <div class="result-row"><span class="result-label">Stabilized Gross Rent</span><span class="result-value">${fmt(rentStab)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Stabilized GSI</span><span class="result-value">${fmt(stabGross)}/mo · ${fmt(stabGross * 12)}/yr</span></div>
+      <div class="result-row"><span class="result-label">Stabilized GRM</span><span class="result-value ${grmStab <= 10 ? 'good' : grmStab <= 12 ? 'warn' : 'bad'}">${grmStab.toFixed(1)}x (target ≤10)</span></div>
       <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${fmt(stabTotalExp)}/mo</span></div>
       <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI)}/mo · ${fmt(stabNOI_yr)}/yr</span></div>
       <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${(stabCF < 0 ? '-' : '') + fmt(stabCF)}/mo</span></div>
