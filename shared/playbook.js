@@ -228,16 +228,23 @@
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Refinance / BRRRR Exit (optional)</div>' +
-          '<div class="input-row"><label>Market Cap Rate — for ARV (%)</label>' +
-            '<input type="number" id="arvcaprate" value="8" oninput="calc()">' +
-            '<div class="hint">Estimated ARV = stabilized NOI ÷ this cap rate. Bump Stabilized Rent above to trigger it</div></div>' +
-          '<div class="input-row"><label>ARV — manual override ($)</label>' +
-            '<input type="number" id="arv" value="0" oninput="this.dataset.touched=\'1\';calc()">' +
-            '<div class="hint">Leave 0 to use the estimate; enter a number (e.g. comp-based) to override it</div></div>' +
-          '<div class="input-row"><label>Refi LTV (%)</label><input type="number" id="refiltv" value="75" oninput="calc()"></div>' +
-          '<div class="input-row"><label>Refi Rate (%)</label><input type="number" id="refirate" value="7.5" oninput="calc()"></div>' +
-          '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="this.dataset.touched=\'1\';calc()">' +
-            '<div class="hint">Defaults to your acquisition amortization until you change it</div></div>' +
+          '<div class="input-row"><label>Refinance after stabilizing?</label>' +
+            '<button type="button" class="toggle-btn" id="willrefi-toggle" style="width:100%;text-align:center;" onclick="toggleWillRefi()">Yes — refinance (BRRRR)</button>' +
+            '<div class="hint">Yes = pull cash out with a new loan once stabilized (BRRRR). No = buy &amp; hold on the original financing — the Stabilized Deal section is then your after-stabilization return</div></div>' +
+          '<div id="refi-rows">' +
+            '<div class="input-row"><label>Market Cap Rate — for ARV (%)</label>' +
+              '<input type="number" id="arvcaprate" value="8" oninput="calc()">' +
+              '<div class="hint">Estimated ARV = stabilized NOI ÷ this cap rate. Bump Stabilized Rent above to trigger it</div></div>' +
+            '<div class="input-row"><label>ARV — manual override ($)</label>' +
+              '<input type="number" id="arv" value="0" oninput="this.dataset.touched=\'1\';calc()">' +
+              '<div class="hint">Leave 0 to use the estimate; enter a number (e.g. comp-based) to override it</div></div>' +
+            '<div class="input-row"><label>Refi LTV (%)</label><input type="number" id="refiltv" value="75" oninput="calc()"></div>' +
+            '<div class="input-row"><label>Refi Rate (%)</label><input type="number" id="refirate" value="7.5" oninput="calc()"></div>' +
+            '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="this.dataset.touched=\'1\';calc()">' +
+              '<div class="hint">Defaults to your acquisition amortization until you change it</div></div>' +
+            '<div class="input-row"><label>Refinance at Year</label><input type="number" id="refiyear" value="1" min="0" step="1" oninput="calc()">' +
+              '<div class="hint">Years after purchase before you refinance (seasoning + stabilization). Waiting longer pays the acquisition loan down more, so a bit more cash comes out</div></div>' +
+          '</div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Rent Roll / Unit Mix (optional)</div>' +
@@ -498,6 +505,7 @@ let capexResMode = 'pct';    /* 'unit' = $/unit/yr · 'pct' = % of gross income 
 let sellerCreditMode = 'repairs';  /* 'repairs' = escrowed repair holdback · 'closing' = toward closing costs */
 let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
+let willRefi      = true;    /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
 
 /* Loan Calculator state */
 let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
@@ -750,6 +758,16 @@ function acqAmortYears() {
 function syncRefiAmort() {
   const r = document.getElementById('refiamort');
   if (r && r.dataset.touched !== '1') r.value = acqAmortYears();
+}
+
+/* BRRRR vs. buy-and-hold: hide the refi detail inputs + exit section when off */
+function toggleWillRefi() {
+  willRefi = !willRefi;
+  const btn  = document.getElementById('willrefi-toggle');
+  const rows = document.getElementById('refi-rows');
+  if (btn)  btn.textContent = willRefi ? 'Yes — refinance (BRRRR)' : 'No — buy & hold';
+  if (rows) rows.style.display = willRefi ? '' : 'none';
+  calc();
 }
 
 function syncStabRent() {
@@ -1089,7 +1107,7 @@ function calc() {
       <div class="result-row"><span class="result-label">Stabilized Cash-on-Cash</span><span class="result-value ${cls(stabCoC, 7, 4)}">${fmtPct(stabCoC)}</span></div>
       <div class="result-row"><span class="result-label">Stabilized DSCR${isCommercial ? ' (≥1.25×)' : ''}</span><span class="result-value ${cls(stabDSCR, dscrMin, 1.0)}">${stabDSCR.toFixed(2)}x</span></div>
       <div class="verdict" style="border-color:${sColor};color:${sColor};">${sVerdict}</div>
-      <div class="note">Same acquisition financing, rents raised to your Stabilized figure (expenses updated to match). Answers "is it a good deal after I do the work?" — separate from the in-place verdict above.</div>
+      <div class="note">Same acquisition financing, rents raised to your Stabilized figure (expenses updated to match). Answers "is it a good deal after I do the work?" — separate from the in-place verdict above.${willRefi ? '' : ' <strong>Buy &amp; hold (no refinance):</strong> this is your after-stabilization return — your original cash stays in the deal, so the Cash-on-Cash above is measured on it.'}</div>
     </div>`;
   }
 
@@ -1242,30 +1260,32 @@ function calc() {
   }
 
   /* ── Refinance / BRRRR exit (#5) — uses stabilized NOI/ARV computed above ── */
-  if ((manualARV > 0 || isValueAdd) && arvUsed > 0 && !isCash) {
+  if (willRefi && (manualARV > 0 || isValueAdd) && arvUsed > 0 && !isCash) {
     const refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
     const refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
     const refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
+    const refiYear    = Math.max(0, Math.round(parseFloat((document.getElementById('refiyear') || {}).value) || 1));
     const newLoan     = arvUsed * refiLtv;
-    const payoff      = loan + rehabLoan;                 // refi clears the acquisition AND rehab loans
+    const acqBalAtRefi= remainingBalance(loan, mr, amortMonths, refiYear * 12);  // paid down to the refi year
+    const payoff      = acqBalAtRefi + rehabLoan;        // refi clears the (paid-down) acquisition AND rehab loans
     const cashOut     = newLoan - payoff;
     const cashLeftIn  = cashToClose - cashOut;
     const newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
     const postCF      = stabNOI_yr / 12 - newPI;          // rehab loan is gone post-refi
     const postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
-      <div class="ctc-header">Refinance / BRRRR Exit</div>
+      <div class="ctc-header">Refinance / BRRRR Exit — Year ${refiYear}</div>
       <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI_yr)}/yr</span></div>
       ${arvCapRate > 0 ? `<div class="result-row"><span class="result-label">Estimated ARV (NOI ÷ ${(arvCapRate * 100).toFixed(2)}% cap)</span><span class="result-value">${fmt(estimatedARV)}</span></div>` : ''}
       <div class="result-row key"><span class="result-label">ARV Used${manualARV > 0 ? ' (manual override)' : ' (estimate)'}</span><span class="result-value">${fmt(arvUsed)}</span></div>
       <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
-      <div class="result-row"><span class="result-label">Loans Paid Off${rehabLoan > 0 ? ' (acquisition + rehab)' : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
+      <div class="result-row"><span class="result-label">Loans Paid Off${rehabLoan > 0 ? ' (acquisition + rehab)' : ''}${refiYear > 0 ? ', bal. @ yr ' + refiYear : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
       <div class="result-row"><span class="result-label">Cash-Out (new loan − payoff)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
       <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
       <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
       <div class="result-row"><span class="result-label">Post-Refi Cash Flow (stabilized)</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
-      <div class="note">ARV = stabilized NOI ÷ market cap rate (enter a manual ARV to override, e.g. from comps). Post-refi cash flow uses stabilized rents. Cash left in ≤ $0 = effectively infinite return.</div>
+      <div class="note">Refinance modeled in year ${refiYear} — the acquisition loan is paid down to ${fmt(acqBalAtRefi)} by then. ARV = stabilized NOI ÷ market cap rate (enter a manual ARV to override, e.g. from comps). Post-refi cash flow uses stabilized rents. Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
   }
 
