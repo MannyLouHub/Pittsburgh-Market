@@ -6,18 +6,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
 :root {
-  /* ── Dark theme (default) ─────────────────────────────── */
-  --steel:#1a1f2e;--steel-mid:#2c3347;--steel-light:#3d4560;
-  --gold:#c9a84c;--gold-light:#e8c87a;--cream:#f5f0e8;
+  /* ── Dark theme (default) — soft black · warm beige · coral-led ── */
+  --steel:#1c1c1c;--steel-mid:#262626;--steel-light:#333333;
+  --gold:#daa520;--gold-light:#e8c87a;--cream:#fbf2e6;
   --green:#2d7a4f;--green-light:#3da067;--red:#b84040;
-  --yellow:#c9862a;--text:#e8e4dc;--text-muted:#9a96a0;
-  --border:rgba(201,168,76,0.25);--max-w:1400px;
+  --yellow:#c9862a;--text:#f5e8d8;--text-muted:#9a96a0;
+  --border:rgba(218,165,32,0.28);--max-w:1400px;
+  /* coral-led accents (light mode remaps these to gold below) */
+  --accent:#ff6f61;--accent-hover:#ff4500;--accent-tint:rgba(255,111,97,0.10);--link:#ff6f61;--tag-dim:rgba(255,255,255,0.08);
   /* themeable surfaces — light mode overrides these only */
   --bad:#e07070;--warn:#e09a40;--accent-strong:var(--gold);--btn-accent:var(--gold);
   --panel:rgba(0,0,0,0.20);--panel-strong:rgba(0,0,0,0.22);
   --input-bg:rgba(0,0,0,0.30);--row-line:rgba(255,255,255,0.04);--row-hover:rgba(255,255,255,0.02);
   --card-shadow:none;--watermark:rgba(201,168,76,0.05);--badge-text:var(--steel);
-  --header-grad:linear-gradient(135deg,#0d1018 0%,var(--steel-mid) 60%,#1a2035 100%);
+  --header-grad:linear-gradient(135deg,#141414 0%,var(--steel-mid) 60%,#241d1a 100%);
 }
 
 /* ── Light theme (Luminous brand palette: sage canvas · navy text · gold accent) ── */
@@ -27,6 +29,8 @@
   --green:#2d7a4f;--green-light:#226b43;--red:#a52f2f;
   --yellow:#9a6516;--text:#102a43;--text-muted:#486581;
   --border:#dcdfcb;
+  /* accents stay gold/navy in light — matches the pre-token values so light is unchanged */
+  --accent:#c9a84c;--accent-hover:#c9a84c;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(61,69,96,0.5);
   --bad:#bf3b30;--warn:#9a6516;--accent-strong:#876d24;--btn-accent:#243b53;
   --panel:rgba(13,27,42,0.045);--panel-strong:rgba(13,27,42,0.055);
   --input-bg:#ffffff;--row-line:rgba(13,27,42,0.08);--row-hover:rgba(13,27,42,0.025);
@@ -40,18 +44,18 @@
   background:var(--steel-light);color:var(--btn-accent);border:1px solid var(--border);
   padding:4px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;line-height:1;
   transition:background .2s,border-color .2s,color .2s;white-space:nowrap;}
-.theme-toggle:hover{border-color:var(--gold);}
+.theme-toggle:hover{border-color:var(--accent-hover);}
 .theme-toggle .ic{font-size:12px;}
 
 /* ─── Back nav ──────────────────────────────────────────────── */
 .back-nav{background:var(--steel);border-bottom:1px solid var(--border);padding:8px 28px;}
 .back-nav a{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:0.5px;}
-.back-nav a:hover{color:var(--gold);}
+.back-nav a:hover{color:var(--accent-hover);}
 
 /* ─── Reset & Base ─────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'IBM Plex Sans',sans-serif;background:var(--steel);color:var(--text);font-size:16px;line-height:1.5;}
-a{color:var(--gold-light);}
+a{color:var(--link);}
 
 /* ─── Header ───────────────────────────────────────────────── */
 .header{background:var(--header-grad);border-bottom:2px solid var(--gold);padding:24px 28px 20px;position:relative;overflow:hidden;}
@@ -64,7 +68,7 @@ a{color:var(--gold-light);}
 .header-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;letter-spacing:0.5px;}
 .header-tag.green{background:rgba(61,160,103,0.2);color:var(--green-light);}
 .header-tag.gold{background:rgba(201,168,76,0.15);color:var(--gold-light);}
-.header-tag.dim{background:rgba(61,69,96,0.6);color:var(--text-muted);}
+.header-tag.dim{background:var(--tag-dim);color:var(--text-muted);}
 .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
 .badge{background:var(--gold);color:var(--badge-text);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:3px 8px;letter-spacing:1px;white-space:nowrap;}
 .badge.alt{background:var(--steel-light);color:var(--text-muted);}
@@ -75,7 +79,7 @@ a{color:var(--gold-light);}
 .tabs-inner::-webkit-scrollbar{display:none;}
 .tab{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.8px;padding:11px 15px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;text-transform:uppercase;}
 .tab:hover{color:var(--text);}
-.tab.active{color:var(--accent-strong);border-bottom-color:var(--gold);background:rgba(201,168,76,0.06);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-tint);}
 
 /* ─── Content & Panels ─────────────────────────────────────── */
 .content{padding:20px 24px;max-width:var(--max-w);margin:0 auto;}
@@ -84,7 +88,7 @@ a{color:var(--gold-light);}
 
 /* ─── Section Titles ───────────────────────────────────────── */
 .section-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--cream);margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
-.section-title .dot{width:7px;height:7px;background:var(--gold);border-radius:50%;flex-shrink:0;}
+.section-title .dot{width:7px;height:7px;background:var(--accent);border-radius:50%;flex-shrink:0;}
 .section-title.sm{font-size:15px;margin-top:14px;}
 
 /* ─── Grid Layouts ─────────────────────────────────────────── */
@@ -100,7 +104,7 @@ a{color:var(--gold-light);}
 .card-value.green{color:var(--green-light);}
 .card-value.red{color:var(--bad);}
 .card-sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
-.card-accent{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold);}
+.card-accent{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);}
 .card-accent.green{background:var(--green-light);}
 .card-accent.red{background:var(--red);}
 
@@ -157,16 +161,16 @@ a{color:var(--gold-light);}
 .input-row{display:flex;flex-direction:column;gap:3px;}
 .input-row label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);}
 .input-row input,.input-row select{background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:15px;padding:7px 10px;width:100%;outline:none;transition:border 0.2s;}
-.input-row input:focus,.input-row select:focus{border-color:var(--gold);}
+.input-row input:focus,.input-row select:focus{border-color:var(--accent);}
 .input-row select option{background:var(--steel-mid);}
 .input-row .hint{font-size:12px;color:var(--text-muted);margin-top:1px;}
 .input-with-toggle{display:flex;gap:6px;align-items:center;}
 .input-with-toggle input{flex:1;}
 .toggle-btn{background:var(--steel-light);border:1px solid var(--border);color:var(--btn-accent);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px 10px;cursor:pointer;white-space:nowrap;letter-spacing:0.5px;transition:all 0.2s;}
-.toggle-btn:hover{background:rgba(201,168,76,0.15);border-color:var(--gold);}
+.toggle-btn:hover{background:rgba(201,168,76,0.15);border-color:var(--accent-hover);}
 .ctc-header{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--accent-strong);margin-bottom:8px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);}
 .result-row{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--panel-strong);border-left:2px solid transparent;gap:8px;}
-.result-row.key{border-left-color:var(--gold);background:rgba(201,168,76,0.06);}
+.result-row.key{border-left-color:var(--accent);background:var(--accent-tint);}
 .result-label{font-size:13px;color:var(--text-muted);}
 .result-value{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--cream);text-align:right;}
 .result-value.good{color:var(--green-light);}
