@@ -179,8 +179,23 @@
     /* 2b — Extended inputs: reserves · hold assumptions · refi · rent roll */
     const calcInputs = document.querySelector('.calc-inputs');
     if (calcInputs) {
+      const cfg0    = window.PLAYBOOK_CONFIG || {};
+      const clrPct0 = cfg0.clr != null ? (cfg0.clr * 100).toFixed(1) : '';
+      const mills0  = cfg0.mills != null ? cfg0.mills : '';
       const ext = document.createElement('div');
       ext.innerHTML =
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Property Taxes</div>' +
+          '<div class="input-row"><label>Assessed Value Source</label>' +
+            '<button type="button" class="toggle-btn" id="taxmode-toggle" style="width:100%;text-align:center;" onclick="toggleTaxMode()">Estimate from price (CLR ' + clrPct0 + '%)</button>' +
+            '<div class="hint">Allegheny taxes = assessed value × mills. Default estimates the assessment as price × the ' + clrPct0 + '% Common Level Ratio. Switch to enter the county\'s actual assessed value from your tax bill</div></div>' +
+          '<div class="input-row" id="assessedval-row" style="display:none;"><label>Assessed Valuation ($)</label>' +
+            '<input type="number" id="assessedval" value="" oninput="calc()">' +
+            '<div class="hint">The county assessed value on your tax bill (e.g. $106,000) — not the purchase price. Blank falls back to the CLR estimate</div></div>' +
+          '<div class="input-row"><label>Combined Mill Rate (mills)</label>' +
+            '<input type="number" id="millrate" value="' + mills0 + '" oninput="calc()">' +
+            '<div class="hint">County + municipal + school district mills, added together. Prefilled for this market; edit if your rates changed (1 mill = $1 per $1,000 of assessed value)</div></div>' +
+        '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Operating Detail</div>' +
           '<div class="input-row"><label>CapEx Reserve</label>' +
@@ -506,6 +521,7 @@ let sellerCreditMode = 'repairs';  /* 'repairs' = escrowed repair holdback · 'c
 let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
 let willRefi      = true;    /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
+let taxMode       = 'clr';   /* 'clr' = estimate assessed value as price × CLR · 'assessed' = user enters the actual county assessed value */
 
 /* Loan Calculator state */
 let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
@@ -747,6 +763,25 @@ function toggleSellerCredit() {
   calc();
 }
 
+/* Taxes: estimate assessed value from price × CLR, or enter the actual county assessment */
+function toggleTaxMode() {
+  taxMode = taxMode === 'clr' ? 'assessed' : 'clr';
+  const cfg = window.PLAYBOOK_CONFIG || {};
+  const btn = document.getElementById('taxmode-toggle');
+  const row = document.getElementById('assessedval-row');
+  if (btn) btn.textContent = taxMode === 'clr'
+    ? 'Estimate from price (CLR ' + (cfg.clr != null ? (cfg.clr * 100).toFixed(1) : '') + '%)'
+    : 'Enter assessed value';
+  if (row) row.style.display = taxMode === 'clr' ? 'none' : '';
+  // Prefill the assessed field with the CLR estimate the first time you switch in
+  if (taxMode === 'assessed') {
+    const av = document.getElementById('assessedval');
+    const pp = parseFloat((document.getElementById('pp') || {}).value) || 0;
+    if (av && !av.value && pp > 0 && cfg.clr) av.value = Math.round(pp * cfg.clr);
+  }
+  calc();
+}
+
 /* Acquisition loan amortization (yrs) — what the refi defaults to until changed */
 function acqAmortYears() {
   const lt = (document.getElementById('loan_type') || {}).value;
@@ -958,9 +993,13 @@ function calc() {
     ? (rehabIO ? rehabLoan * rehabRateMo : pmtFromLoan(rehabLoan, rehabRateMo, rehabTermYr * 12))
     : 0;
 
-  // Tax — location-specific via config (CLR × mill rate)
-  const assessedVal = pp * cfg.clr;
-  const monthlyTax  = assessedVal * (cfg.mills / 1000) / 12;
+  // Tax — assessed value (price × CLR estimate, or the actual county assessment) × combined mills
+  const millRateIn  = parseFloat((document.getElementById('millrate') || {}).value);
+  const millsUsed   = (isFinite(millRateIn) && millRateIn > 0) ? millRateIn : cfg.mills;
+  const estAssessed = pp * cfg.clr;
+  const assessedIn  = parseFloat((document.getElementById('assessedval') || {}).value);
+  const assessedVal = (taxMode === 'assessed' && isFinite(assessedIn) && assessedIn > 0) ? assessedIn : estAssessed;
+  const monthlyTax  = assessedVal * (millsUsed / 1000) / 12;
 
   // Income & expenses
   const grossIncome      = rentGross + otherIncome;
@@ -1062,7 +1101,10 @@ function calc() {
     ...(isCommercial ? [{l:'Financing Basis', v:'Commercial · ' + commAmortYrs + '-yr amort · DSCR ≥1.25×', c:'', key:false}] : []),
     {l:'Monthly P&I',                                 v:fmt(pi) + '/mo',                                           c:'',                      key:false},
     ...(rehabPI > 0 ? [{l:'Rehab Loan ' + (rehabIO ? 'Interest' : 'P&I') + ' (' + fmt(rehabLoan) + ' @ ' + (rehabRateMo * 1200).toFixed(1) + '%' + (rehabIO ? ' IO' : '') + ')', v:fmt(rehabPI) + '/mo', c:'bad', key:false}] : []),
-    {l:'Tax Estimate (CLR-modeled)',                  v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
+    {l: taxMode === 'assessed' ? 'Property Tax (assessed value)' : 'Tax Estimate (CLR-modeled)',
+                                                      v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
+    {l:'Assessed Value Used' + (taxMode === 'assessed' ? '' : ' (est.)'),
+                                                      v:'$' + Math.round(assessedVal).toLocaleString('en-US') + ' × ' + millsUsed + ' mills', c:'', key:false},
     ...(pmiMonthly > 0 ? [{
       l: loanType === 'fha' ? 'FHA MIP (0.55%/yr · drops at loan payoff)' : 'PMI (0.48%/yr · drops at 80% LTV)',
       v: fmt(pmiMonthly) + '/mo · ' + fmt(pmiMonthly * 12) + '/yr',
