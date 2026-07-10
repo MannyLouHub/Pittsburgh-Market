@@ -1396,6 +1396,57 @@ function calc() {
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
       <div class="note">Refinance modeled in year ${refiYear}: ARV = that year's NOI (${fmt(noiRefi_yr)}) ÷ the ${(arvCapRate * 100).toFixed(2)}% cap${grew ? ', so it reflects the rent growth by year ' + refiYear + ' — matching the projection' : ''}${isBridge ? `, and the interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down` : `, and the acquisition loan is paid down to ${fmt(acqBalAtRefi)}`}. Enter a manual ARV to override with comps. Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
+
+    /* ── Bridge-only: Stabilization — Pre vs. Post Refinance (#6) ──
+       Holds NOI at the stabilized level in BOTH columns so the only thing
+       changing is the financing — isolates what the refinance itself does
+       for a bridge/hard-money value-add deal. */
+    if (isBridge) {
+      const preCF        = stabCF;
+      const preDSCR       = stabDSCR;
+      const preCoC        = stabCoC;
+      const postStabCF    = stabNOI - newPI;
+      const postStabDSCR  = newPI > 0 ? stabNOI / newPI : 0;
+      const postStabCoC   = cashLeftIn > 0 ? (postStabCF * 12 / cashLeftIn * 100) : null;
+      const cfSwing       = postStabCF - preCF;
+      const capitalTxt    = cashOut >= 0
+        ? 'returns ' + fmt(cashOut) + ' of your capital'
+        : 'requires ' + fmt(-cashOut) + ' MORE cash at the refinance table';
+      // A refi that doesn't cover the bridge payoff defeats the point of the strategy —
+      // cash flow/DSCR alone can't carry the verdict green, and a large shortfall caps it at red.
+      const needsMoreCash = cashOut < 0;
+      const bigShortfall  = needsMoreCash && (-cashOut) > cashToClose * 0.25;
+      let bVerdict, bColor;
+      if (!needsMoreCash && postStabCF >= 150 * units && postStabDSCR >= dscrMin) {
+        bVerdict = '🟢 REFINANCE MAKES THE DEAL — clears cash flow &amp; DSCR benchmarks, no added cash needed'; bColor = 'var(--green-light)';
+      } else if (!bigShortfall && postStabCF > 0 && postStabDSCR >= 1.0) {
+        bVerdict = needsMoreCash
+          ? '🟡 CASH FLOW IMPROVES, BUT THE REFI DOESN\'T FULLY REPAY THE BRIDGE — still needs ' + fmt(-cashOut) + ' more cash'
+          : '🟡 REFINANCE HELPS, BUT STILL THIN — verify rents before committing';
+        bColor = '#e09a40';
+      } else {
+        bVerdict = bigShortfall
+          ? "🔴 DOESN'T PENCIL — ARV can't support a payoff, needs " + fmt(-cashOut) + ' more cash at refi'
+          : "🔴 DOESN'T PENCIL EVEN REFINANCED — bridge carry too thin";
+        bColor = '#e07070';
+      }
+      html += `<div style="margin-top:12px;border:1px solid ${bColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
+        <div class="ctc-header" style="color:${bColor};">Bridge Loan — Stabilization: Pre vs. Post Refinance</div>
+        <table class="data-table" style="margin:8px 0;font-size:12px;">
+          <thead><tr><th></th><th>During Bridge (${rate}% IO)</th><th>After Refinance</th></tr></thead>
+          <tbody>
+            <tr><td class="mu">Debt Service</td><td>${fmt(pi + rehabPI)}/mo</td><td>${fmt(newPI)}/mo</td></tr>
+            <tr><td class="mu">Cash Flow</td><td class="${preCF < 0 ? 'bad' : 'good'}">${(preCF < 0 ? '-' : '') + fmt(preCF)}/mo</td><td class="${postStabCF < 0 ? 'bad' : 'good'}">${(postStabCF < 0 ? '-' : '') + fmt(postStabCF)}/mo</td></tr>
+            <tr><td class="mu">DSCR</td><td>${preDSCR.toFixed(2)}x</td><td>${postStabDSCR.toFixed(2)}x</td></tr>
+            <tr><td class="mu">Capital Tied Up</td><td>${fmt(cashToClose)}</td><td>${cashLeftIn <= 0 ? '$0' : fmt(cashLeftIn)}</td></tr>
+            <tr><td class="mu">Cash-on-Cash</td><td>${fmtPct(preCoC)}</td><td>${postStabCoC == null ? '∞' : fmtPct(postStabCoC)}</td></tr>
+          </tbody>
+        </table>
+        <div class="result-row key"><span class="result-label">Cash Flow Swing (refi − bridge)</span><span class="result-value ${cfSwing < 0 ? 'bad' : 'good'}">${(cfSwing < 0 ? '-' : '+') + fmt(Math.abs(cfSwing))}/mo</span></div>
+        <div class="note">Refinancing ${capitalTxt}. Both columns use the same stabilized NOI (${fmt(stabNOI)}/mo) — only the financing changes, so this isolates what the refinance itself does for the deal. Compare against the "During Rehab" numbers higher up (in-place rent, before stabilization) for the full arc.</div>
+        <div class="verdict" style="border-color:${bColor};color:${bColor};">${bVerdict}</div>
+      </div>`;
+    }
   }
 
   document.getElementById('results').innerHTML = html;
