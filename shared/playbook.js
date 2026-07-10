@@ -84,10 +84,12 @@
           '<option value="dscr">DSCR — Investor loan · 20%+ down · No PMI</option>' +
           '<option value="cash">Cash Purchase · No financing</option>' +
           '<option value="seller">Seller Finance — Flexible terms · No PMI/MIP · Balloon typical</option>' +
+          '<option value="bridge">Bridge / Hard-Money — 12% interest-only · must refinance to exit</option>' +
         '</select>' +
         '<div class="hint">Conventional: PMI (0.48%/yr) kicks in automatically when DP &lt; 20% and drops at 80% LTV &nbsp;·&nbsp; ' +
         'FHA: monthly MIP never drops if &lt;10% down &nbsp;·&nbsp; Rates: Movement Mortgage, May 2026 &nbsp;·&nbsp; ' +
-        'Seller Finance: No PMI/MIP regardless of down payment &nbsp;·&nbsp; Balloon due date typical</div>';
+        'Seller Finance: No PMI/MIP regardless of down payment &nbsp;·&nbsp; Balloon due date typical &nbsp;·&nbsp; ' +
+        'Bridge / Hard-Money: interest-only — full balance carries to your refinance or sale, no principal paydown</div>';
       dpRow.insertAdjacentElement('afterend', row);
 
       // Seller Finance hidden input rows (shown only when loan_type === 'seller')
@@ -412,6 +414,23 @@
       'Use Purchase Money Mortgage (not Land Contract) for buyer protection in PA.</div>' +
       '</div>' +
 
+      /* BRIDGE / HARD-MONEY — full-width card */
+      '<div class="strategy-card mb-14"><div class="s-stripe" style="background:#c96a4e;"></div>' +
+      '<div class="s-label">Loan Type 6 — Value-Add / Short-Term</div>' +
+      '<div class="s-title">Bridge / Hard-Money (Interest-Only)</div>' +
+      '<div class="s-trigger">Best for: <span>Value-add duplexes/triplexes needing rehab before they\'ll qualify for a permanent loan · fast, condition-driven closes · properties a conventional or DSCR lender would decline as-is</span></div>' +
+      '<div class="s-metrics">' +
+        '<div>Min Down: <span>~15% (≈85% loan-to-cost) — lender-specific</span></div>' +
+        '<div>Rate (typical): <span>10–14% · modeled at 12%, interest-only</span></div>' +
+        '<div>Term: <span>6–24 months · balloon at refinance or sale</span></div>' +
+        '<div>Principal: <span>No paydown — full balance due at exit</span></div>' +
+        '<div>Qualification: <span>Asset/condition-based — light income docs, fast close</span></div>' +
+        '<div>Exit Requirement: <span>Must refinance into a permanent loan or sell before the term ends</span></div>' +
+      '</div>' +
+      '<div class="s-note"><strong>✅ Pros:</strong> Funds deals a bank won\'t touch pre-rehab (condition, occupancy, or seasoning issues). Fast close, light documentation. Interest-only keeps the monthly carry as low as the rate allows while you\'re not yet at stabilized rents.<br><br>' +
+      '<strong>🚨 Cons:</strong> Rate is well above permanent financing (12% vs. 7–8.5%) and 100% of it is carry cost — none of it builds equity. No exit plan (refi or sale) before the balloon date is a forced-sale risk. Select this loan type in the Calculator tab to model the interest-only carry and see the after-refinance numbers in the BRRRR Exit section.</div>' +
+      '</div>' +
+
       /* Quick comparison table */
       '<div class="section-title sm"><div class="dot"></div>Quick Comparison — ' + loc + '</div>' +
       '<table class="data-table mb-14">' +
@@ -422,6 +441,7 @@
           '<tr><td class="hl">DSCR</td><td>20–25%</td><td class="mu">8.50%+</td><td>None</td><td class="gr">No</td><td class="mu">Investor scaling · LLC deals · no W-2 needed</td></tr>' +
           '<tr><td class="hl">Cash</td><td>100%</td><td class="mu">N/A</td><td>None</td><td class="gr">No</td><td class="gr">Max cash flow · distressed ZIPs · BRRRR entry</td></tr>' +
           '<tr><td class="hl">Seller Finance</td><td>0–20% (seller sets)</td><td class="mu">6–9% (above market)</td><td class="gr">None — ever</td><td class="gr">No (investment-friendly)</td><td class="mu">Creative deals · off-market · buyers who can\'t qualify conventionally · balloon in 3–7 yrs</td></tr>' +
+          '<tr><td class="hl">Bridge / Hard-Money</td><td>~15% (≈85% LTC)</td><td class="mu">10–14% (12% modeled), IO</td><td>None</td><td class="gr">No</td><td class="rd">Value-add rehab · must refinance to exit · not a long-term hold loan</td></tr>' +
         '</tbody>' +
       '</table>' +
 
@@ -595,9 +615,10 @@ function onUnitsChange() {
 function applyCommercialMode(isCommercial) {
   const lt = document.getElementById('loan_type');
   const sellerSelected = lt && lt.value === 'seller';
+  const bridgeSelected = lt && lt.value === 'bridge';
 
   const commRow = document.getElementById('comm-amort-row');
-  if (commRow) commRow.style.display = (isCommercial && !sellerSelected) ? '' : 'none';
+  if (commRow) commRow.style.display = (isCommercial && !sellerSelected && !bridgeSelected) ? '' : 'none';
 
   if (lt) {
     const convOpt = lt.querySelector('option[value="conv"]');
@@ -647,6 +668,20 @@ function remainingBalance(loanAmt, monthlyRate, nMonths, monthsPaid) {
   const p = pmtFromLoan(loanAmt, monthlyRate, nMonths);
   const bal = loanAmt * Math.pow(1 + monthlyRate, monthsPaid) - p * (Math.pow(1 + monthlyRate, monthsPaid) - 1) / monthlyRate;
   return Math.max(0, bal);
+}
+
+/* Acquisition-loan math, aware of interest-only (bridge/hard-money) financing.
+ * interestOnly = true (bridge): the balance never amortizes down — the full loan
+ * carries to whatever exit (refinance or sale) you model. Payment itself (loan × rate)
+ * is computed inline in calc() alongside the existing P&I formula.
+ * interestOnly = false: identical to the plain amortizing helpers above — no change
+ * in behavior for every pre-existing loan type. */
+function acqBalance(loanAmt, monthlyRate, nMonths, monthsPaid, interestOnly) {
+  return interestOnly ? Math.max(0, loanAmt) : remainingBalance(loanAmt, monthlyRate, nMonths, monthsPaid);
+}
+function acqLoanFromPmt(monthlyPmt, monthlyRate, nMonths, interestOnly) {
+  if (interestOnly) return monthlyRate > 0 ? monthlyPmt / monthlyRate : 0;
+  return loanFromPmt(monthlyPmt, monthlyRate, nMonths);
 }
 
 /* IRR via bisection on annual cashflows; returns % (number) or null if none. */
@@ -796,12 +831,15 @@ function syncRefiAmort() {
 }
 
 /* BRRRR vs. buy-and-hold: hide the refi detail inputs + exit section when off */
-function toggleWillRefi() {
-  willRefi = !willRefi;
+function setWillRefi(val) {
+  willRefi = val;
   const btn  = document.getElementById('willrefi-toggle');
   const rows = document.getElementById('refi-rows');
   if (btn)  btn.textContent = willRefi ? 'Yes — refinance (BRRRR)' : 'No — buy & hold';
   if (rows) rows.style.display = willRefi ? '' : 'none';
+}
+function toggleWillRefi() {
+  setWillRefi(!willRefi);
   calc();
 }
 
@@ -885,6 +923,14 @@ function updateLoanType() {
   else if (lt === 'dscr')   { rate.value = 8.50;  dp.value = commercial ? 25 : 20; }
   else if (lt === 'cash')   { rate.value = 0;     dp.value = 100; }
   else if (lt === 'seller') { rate.value = 7.5;   dp.value = 10;  }
+  else if (lt === 'bridge') {
+    rate.value = 12; dp.value = 15;
+    // A bridge/hard-money acquisition must exit via refinance — turn the BRRRR exit on
+    setWillRefi(true);
+    // Suggest the same 12% IO rate for a separately-financed rehab loan, if used
+    const rehabRateEl = document.getElementById('rehabfin-rate');
+    if (rehabRateEl) rehabRateEl.value = 12;
+  }
   // Show/hide seller finance rows
   const sfAmortRow   = document.getElementById('sf-amort-row');
   const sfBalloonRow = document.getElementById('sf-balloon-row');
@@ -940,6 +986,7 @@ function calc() {
   const loanTypeEl = document.getElementById('loan_type');
   const loanType   = loanTypeEl ? loanTypeEl.value : 'conv';
   const isCash     = loanType === 'cash';
+  const isBridge   = loanType === 'bridge';   // interest-only bridge/hard-money acquisition
 
   // Financing
   const dp   = pp * dpPct / 100;
@@ -951,7 +998,9 @@ function calc() {
   const amortMonths  = loanType === 'seller' ? sfAmortYrs * 12
                      : isCommercial          ? commAmortYrs * 12
                      : 360;
+  // Bridge/hard-money: interest-only, no amortization — payment is just balance × rate
   const pi   = isCash ? 0
+             : isBridge ? loan * mr
              : (mr > 0 ? loan * (mr * Math.pow(1 + mr, amortMonths)) / (Math.pow(1 + mr, amortMonths) - 1) : 0);
 
   // PMI / MIP calculation
@@ -1099,7 +1148,8 @@ function calc() {
     ...((isCommercial && dpPct < 25) ? [{l:'⚠ Down Payment Below Commercial Min', v:'25% typical for 5+ units', c:'bad', key:true}] : []),
     {l:'Loan Amount',                                 v:fmt(loan),                                                 c:'',                      key:false},
     ...(isCommercial ? [{l:'Financing Basis', v:'Commercial · ' + commAmortYrs + '-yr amort · DSCR ≥1.25×', c:'', key:false}] : []),
-    {l:'Monthly P&I',                                 v:fmt(pi) + '/mo',                                           c:'',                      key:false},
+    {l: isBridge ? 'Monthly Interest (Bridge IO @ ' + rate + '%)' : 'Monthly P&I', v:fmt(pi) + '/mo', c:'', key:false},
+    ...(isBridge ? [{l:'⚠ Interest-Only — No Principal Paydown', v:fmt(loan) + ' balance carries in full to your refi/sale', c:'bad', key:false}] : []),
     ...(rehabPI > 0 ? [{l:'Rehab Loan ' + (rehabIO ? 'Interest' : 'P&I') + ' (' + fmt(rehabLoan) + ' @ ' + (rehabRateMo * 1200).toFixed(1) + '%' + (rehabIO ? ' IO' : '') + ')', v:fmt(rehabPI) + '/mo', c:'bad', key:false}] : []),
     {l: taxMode === 'assessed' ? 'Property Tax (assessed value)' : 'Tax Estimate (CLR-modeled)',
                                                       v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
@@ -1118,7 +1168,8 @@ function calc() {
     ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
     {l:'Gross Scheduled Income (GSI)',                 v:fmt(grossIncome) + '/mo · ' + fmt(gsi_yr) + '/yr',        c:'',                      key:false},
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
-    {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)' : 'Total Monthly Payment — PITI' + (pmiMonthly > 0 ? ' + PMI/MIP' : '') + (rehabPI > 0 ? ' + Rehab' : ''),
+    {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)'
+        : (isBridge ? 'Total Monthly Payment — Interest + Tax + Ins.' : 'Total Monthly Payment — PITI') + (pmiMonthly > 0 ? ' + PMI/MIP' : '') + (rehabPI > 0 ? ' + Rehab' : ''),
      v: fmt(pi + rehabPI + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                          c:'',                      key:true},
     {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
     {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
@@ -1233,7 +1284,7 @@ function calc() {
   /* ── Lender sizing — max offer at target DSCR (#2) ── */
   if (!isCash && pi > 0 && noi_yr > 0) {
     const maxAnnualDS  = noi_yr / dscrMin;
-    const maxLoan      = loanFromPmt(maxAnnualDS / 12, mr, amortMonths);
+    const maxLoan      = acqLoanFromPmt(maxAnnualDS / 12, mr, amortMonths, isBridge);
     const maxPrice     = dpPct < 100 ? maxLoan / (1 - dpPct / 100) : maxLoan;
     const delta        = pp - maxPrice;
     const deltaTxt     = delta > 0
@@ -1279,7 +1330,7 @@ function calc() {
       const cf_t_yr    = noi_t_yr - pi * 12 - rehabPI * 12;
       cumCF += cf_t_yr;
       cfByYear.push(cf_t_yr);
-      lastBalance = remainingBalance(loan, mr, amortMonths, t * 12);
+      lastBalance = acqBalance(loan, mr, amortMonths, t * 12, isBridge);
       lastNOI_yr  = noi_t_yr;
       rows5 += `<tr><td>${t}</td><td>${fmt(rent_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
     }
@@ -1323,7 +1374,7 @@ function calc() {
     const estArvRefi  = arvCapRate > 0 ? noiRefi_yr / arvCapRate : 0;
     const arvRefi     = manualARV > 0 ? manualARV : estArvRefi;   // manual comp override still wins
     const newLoan     = arvRefi * refiLtv;
-    const acqBalAtRefi= remainingBalance(loan, mr, amortMonths, refiYear * 12);  // paid down to the refi year
+    const acqBalAtRefi= acqBalance(loan, mr, amortMonths, refiYear * 12, isBridge);  // bridge: no paydown, full balance; else paid down to the refi year
     const payoff      = acqBalAtRefi + rehabLoan;        // refi clears the (paid-down) acquisition AND rehab loans
     const cashOut     = newLoan - payoff;
     const cashLeftIn  = cashToClose - cashOut;
@@ -1343,7 +1394,7 @@ function calc() {
       <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
       <div class="result-row"><span class="result-label">Post-Refi Cash Flow (Yr ${refiYear})</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
-      <div class="note">Refinance modeled in year ${refiYear}: ARV = that year's NOI (${fmt(noiRefi_yr)}) ÷ the ${(arvCapRate * 100).toFixed(2)}% cap${grew ? ', so it reflects the rent growth by year ' + refiYear + ' — matching the projection' : ''}, and the acquisition loan is paid down to ${fmt(acqBalAtRefi)}. Enter a manual ARV to override with comps. Cash left in ≤ $0 = effectively infinite return.</div>
+      <div class="note">Refinance modeled in year ${refiYear}: ARV = that year's NOI (${fmt(noiRefi_yr)}) ÷ the ${(arvCapRate * 100).toFixed(2)}% cap${grew ? ', so it reflects the rent growth by year ' + refiYear + ' — matching the projection' : ''}${isBridge ? `, and the interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down` : `, and the acquisition loan is paid down to ${fmt(acqBalAtRefi)}`}. Enter a manual ARV to override with comps. Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
   }
 
