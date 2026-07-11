@@ -1096,7 +1096,13 @@ function calc() {
   const stabDSCR      = (pi + rehabPI) > 0 ? stabNOI / (pi + rehabPI) : 0;
   const grmStab       = rentStab > 0 ? pp / (rentStab * 12) : 0;
   const arvCapRate    = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
-  const estimatedARV  = arvCapRate > 0 ? stabNOI_yr / arvCapRate : 0;
+  // Valuation (ARV) is priced with a market-standard management fee, never $0 — a property's market
+  // value doesn't depend on whether THIS owner happens to self-manage. Owner-facing figures above
+  // (stabNOI, stabCF, stabCoC, stabDSCR) still use the actual pmPct/toggle; only ARV is normalized.
+  const stabPM_val       = stabEGI * (configuredPmPct / 100);
+  const stabTotalExp_val = monthlyTax + insMonthly + stabPM_val + stabRepairs + stabOther + pmiMonthly + stabCapexRes + utilitiesMonthly;
+  const stabNOI_forValuation_yr = (stabEGI - stabTotalExp_val) * 12;
+  const estimatedARV  = arvCapRate > 0 ? stabNOI_forValuation_yr / arvCapRate : 0;
   const manualARV     = parseFloat((document.getElementById('arv') || {}).value) || 0;
   const arvUsed       = manualARV > 0 ? manualARV : estimatedARV;   // as-stabilized (day-1) value for the equity-margin test
 
@@ -1122,12 +1128,14 @@ function calc() {
     }
     return rentGross * Math.pow(1 + rentG, t - 1);
   }
-  function noiAtYear(t) {
+  // pmPctForCalc lets valuation call sites (ARV, sale price) price NOI with a market-standard
+  // management fee, overriding the owner's actual Self-Managed/PM toggle (pmPct).
+  function noiAtYear(t, pmPctForCalc) {
     const g          = Math.max(0, t - 1);                    // expense-growth exponent (base year = 0)
     const rent_t     = projRent(t);
     const gross_t    = rent_t + otherIncome;
     const egi_t      = gross_t * (1 - vacPct / 100);
-    const pm_t       = egi_t * (pmPct / 100);
+    const pm_t       = egi_t * ((pmPctForCalc != null ? pmPctForCalc : pmPct) / 100);
     const repairs_t  = rent_t * capexPct / 100;                                            // scales with rent
     const other_t    = otherMode === 'pct' ? rent_t * otherInput / 100 : otherMonthly * Math.pow(1 + expG, g);
     const capexRes_t = capexResMode === 'pct' ? gross_t * capexResRaw / 100 : (units * capexResRaw / 12) * Math.pow(1 + expG, g);
@@ -1322,7 +1330,7 @@ function calc() {
 
   /* ── 5-year pro forma & total return (#1) ── */
   if (pp > 0) {
-    let rows5 = '', cumCF = 0, lastBalance = loan, lastNOI_yr = 0;
+    let rows5 = '', cumCF = 0, lastBalance = loan;
     const cfByYear = [];
     for (let t = 1; t <= holdYears; t++) {
       const rent_t     = projRent(t);
@@ -1331,12 +1339,14 @@ function calc() {
       cumCF += cf_t_yr;
       cfByYear.push(cf_t_yr);
       lastBalance = acqBalance(loan, mr, amortMonths, t * 12, isBridge);
-      lastNOI_yr  = noi_t_yr;
       rows5 += `<tr><td>${t}</td><td>${fmt(rent_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
     }
-    // Exit: value-add uses income approach (final NOI ÷ market cap) to capture created value; else appreciation
+    // Exit: value-add uses income approach (final NOI ÷ market cap) to capture created value; else appreciation.
+    // Sale price is a valuation figure — priced with a market-standard management fee, not the owner's
+    // Self-Managed/PM toggle (a buyer's appraisal doesn't care how THIS owner ran it).
     const exitByIncome     = isValueAdd && arvCapRate > 0;
-    const salePrice        = exitByIncome ? lastNOI_yr / arvCapRate : pp * Math.pow(1 + apprG, holdYears);
+    const lastNOI_yr_val   = exitByIncome ? noiAtYear(holdYears, configuredPmPct) : 0;
+    const salePrice        = exitByIncome ? lastNOI_yr_val / arvCapRate : pp * Math.pow(1 + apprG, holdYears);
     const sellingCosts     = salePrice * sellCostPct;
     const netProceeds      = salePrice - sellingCosts - lastBalance;
     const principalPaydown = loan - lastBalance;
@@ -1370,8 +1380,11 @@ function calc() {
     const refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
     const refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
     const refiYear    = Math.max(0, Math.round(parseFloat((document.getElementById('refiyear') || {}).value) || 1));
-    const noiRefi_yr  = noiAtYear(refiYear);              // NOI at the year you refinance — tracks the projection
-    const estArvRefi  = arvCapRate > 0 ? noiRefi_yr / arvCapRate : 0;
+    const noiRefi_yr  = noiAtYear(refiYear);              // owner's actual NOI at the year you refinance (respects Self-Managed/PM toggle) — drives post-refi cash flow
+    // ARV is a valuation figure — priced with a market-standard management fee, independent of the
+    // Self-Managed/PM toggle. A property's market value doesn't depend on how the owner runs it.
+    const noiRefi_yr_forValuation = noiAtYear(refiYear, configuredPmPct);
+    const estArvRefi  = arvCapRate > 0 ? noiRefi_yr_forValuation / arvCapRate : 0;
     const arvRefi     = manualARV > 0 ? manualARV : estArvRefi;   // manual comp override still wins
     const newLoan     = arvRefi * refiLtv;
     const acqBalAtRefi= acqBalance(loan, mr, amortMonths, refiYear * 12, isBridge);  // bridge: no paydown, full balance; else paid down to the refi year
@@ -1385,7 +1398,7 @@ function calc() {
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
       <div class="ctc-header">Refinance / BRRRR Exit — Year ${refiYear}</div>
       <div class="result-row"><span class="result-label">${grew ? 'NOI at Refi (Yr ' + refiYear + ', grown)' : 'Stabilized NOI'}</span><span class="result-value">${fmt(noiRefi_yr)}/yr</span></div>
-      ${arvCapRate > 0 ? `<div class="result-row"><span class="result-label">Estimated ARV (NOI ÷ ${(arvCapRate * 100).toFixed(2)}% cap)</span><span class="result-value">${fmt(estArvRefi)}</span></div>` : ''}
+      ${arvCapRate > 0 ? `<div class="result-row"><span class="result-label">Estimated ARV (mkt-rate NOI ÷ ${(arvCapRate * 100).toFixed(2)}% cap)</span><span class="result-value">${fmt(estArvRefi)}</span></div>` : ''}
       <div class="result-row key"><span class="result-label">ARV Used${manualARV > 0 ? ' (manual override)' : ' (Yr ' + refiYear + ' estimate)'}</span><span class="result-value">${fmt(arvRefi)}</span></div>
       <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
       <div class="result-row"><span class="result-label">Loans Paid Off${rehabLoan > 0 ? ' (acquisition + rehab)' : ''}${refiYear > 0 ? ', bal. @ yr ' + refiYear : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
@@ -1394,7 +1407,7 @@ function calc() {
       <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
       <div class="result-row"><span class="result-label">Post-Refi Cash Flow (Yr ${refiYear})</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
-      <div class="note">Refinance modeled in year ${refiYear}: ARV = that year's NOI (${fmt(noiRefi_yr)}) ÷ the ${(arvCapRate * 100).toFixed(2)}% cap${grew ? ', so it reflects the rent growth by year ' + refiYear + ' — matching the projection' : ''}${isBridge ? `, and the interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down` : `, and the acquisition loan is paid down to ${fmt(acqBalAtRefi)}`}. Enter a manual ARV to override with comps. Cash left in ≤ $0 = effectively infinite return.</div>
+      <div class="note">Refinance modeled in year ${refiYear}: ARV = that year's NOI priced with a market-standard ${configuredPmPct}% management fee (${fmt(noiRefi_yr_forValuation)}, independent of your Self-Managed/PM toggle above) ÷ the ${(arvCapRate * 100).toFixed(2)}% cap${grew ? ', so it reflects the rent growth by year ' + refiYear + ' — matching the projection' : ''}${isBridge ? `, and the interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down` : `, and the acquisition loan is paid down to ${fmt(acqBalAtRefi)}`}. Enter a manual ARV to override with comps. Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
 
     /* ── Bridge-only: Stabilization — Pre vs. Post Refinance (#6) ──
