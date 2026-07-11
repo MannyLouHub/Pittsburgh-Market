@@ -1328,18 +1328,54 @@ function calc() {
     </div>`;
   }
 
-  /* ── 5-year pro forma & total return (#1) ── */
+  /* ── Refinance parameters — hoisted above the 5-yr projection so the projection can react to
+     the actual refinance event (loan switch + cash-out), instead of assuming the original
+     acquisition loan runs for the entire hold. Reused as-is by the Refinance/BRRRR Exit box below. ── */
+  const refiActive = willRefi && (manualARV > 0 || isValueAdd) && arvUsed > 0 && !isCash;
+  let refiLtv = 0, refiRateMo = 0, refiAmortYr = 30, refiYear = 0;
+  let noiRefi_yr = 0, noiRefi_yr_forValuation = 0, estArvRefi = 0, arvRefi = 0;
+  let newLoan = 0, acqBalAtRefi = 0, payoff = 0, cashOut = 0, cashLeftIn = 0, newPI = 0, postCF = 0, postCoC = null, grew = false;
+  if (refiActive) {
+    refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
+    refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
+    refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
+    refiYear    = Math.max(0, Math.round(parseFloat((document.getElementById('refiyear') || {}).value) || 1));
+    noiRefi_yr  = noiAtYear(refiYear);              // owner's actual NOI at the year you refinance (respects Self-Managed/PM toggle) — drives post-refi cash flow
+    // ARV is a valuation figure — priced with a market-standard management fee, independent of the
+    // Self-Managed/PM toggle. A property's market value doesn't depend on how the owner runs it.
+    noiRefi_yr_forValuation = noiAtYear(refiYear, configuredPmPct);
+    estArvRefi  = arvCapRate > 0 ? noiRefi_yr_forValuation / arvCapRate : 0;
+    arvRefi     = manualARV > 0 ? manualARV : estArvRefi;   // manual comp override still wins
+    newLoan     = arvRefi * refiLtv;
+    acqBalAtRefi= acqBalance(loan, mr, amortMonths, refiYear * 12, isBridge);  // bridge: no paydown, full balance; else paid down to the refi year
+    payoff      = acqBalAtRefi + rehabLoan;        // refi clears the (paid-down) acquisition AND rehab loans
+    cashOut     = newLoan - payoff;
+    cashLeftIn  = cashToClose - cashOut;
+    newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
+    postCF      = noiRefi_yr / 12 - newPI;          // rehab loan is gone post-refi; NOI at the refi year
+    postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
+    grew        = isValueAdd && refiYear > stabYears;
+  }
+  const refiWithinHold = refiActive && refiYear < holdYears;   // the refi actually lands before you exit — otherwise treat the hold as un-refinanced
+
+  /* ── 5-year pro forma & total return (#1) — switches to the refinanced loan (and drops the
+     rehab loan, which the refi pays off) starting the year after refiYear; books the cash-out
+     as a real cash event instead of leaving it stranded in a separate box. ── */
   if (pp > 0) {
     let rows5 = '', cumCF = 0, lastBalance = loan;
     const cfByYear = [];
     for (let t = 1; t <= holdYears; t++) {
-      const rent_t     = projRent(t);
-      const noi_t_yr   = noiAtYear(t);
-      const cf_t_yr    = noi_t_yr - pi * 12 - rehabPI * 12;
+      const rent_t        = projRent(t);
+      const noi_t_yr       = noiAtYear(t);
+      const cfUsesNewLoan  = refiWithinHold && t > refiYear;    // full year of the new payment only after the refi year
+      const balUsesNewLoan = refiWithinHold && t >= refiYear;   // balance snapshot reflects the refi once it closes (incl. its own year)
+      const cf_t_yr    = cfUsesNewLoan ? (noi_t_yr - newPI * 12) : (noi_t_yr - pi * 12 - rehabPI * 12);
       cumCF += cf_t_yr;
       cfByYear.push(cf_t_yr);
-      lastBalance = acqBalance(loan, mr, amortMonths, t * 12, isBridge);
-      rows5 += `<tr><td>${t}</td><td>${fmt(rent_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
+      lastBalance = balUsesNewLoan
+        ? remainingBalance(newLoan, refiRateMo, refiAmortYr * 12, (t - refiYear) * 12)
+        : acqBalance(loan, mr, amortMonths, t * 12, isBridge);
+      rows5 += `<tr><td>${t}${refiWithinHold && t === refiYear ? ' 🔁' : ''}</td><td>${fmt(rent_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
     }
     // Exit: value-add uses income approach (final NOI ÷ market cap) to capture created value; else appreciation.
     // Sale price is a valuation figure — priced with a market-standard management fee, not the owner's
@@ -1348,53 +1384,64 @@ function calc() {
     const lastNOI_yr_val   = exitByIncome ? noiAtYear(holdYears, configuredPmPct) : 0;
     const salePrice        = exitByIncome ? lastNOI_yr_val / arvCapRate : pp * Math.pow(1 + apprG, holdYears);
     const sellingCosts     = salePrice * sellCostPct;
-    const netProceeds      = salePrice - sellingCosts - lastBalance;
-    const principalPaydown = loan - lastBalance;
+    const netProceeds      = salePrice - sellingCosts - lastBalance;   // lastBalance already reflects whichever loan is active at exit
+    const principalPaydown = (refiWithinHold ? newLoan : loan) - lastBalance;   // paydown on the loan you're actually carrying at exit
     const apprGain         = salePrice - pp;
-    const totalProfit      = cumCF + netProceeds - cashToClose;
-    const equityMult       = cashToClose > 0 ? (cumCF + netProceeds) / cashToClose : 0;
-    const avgCoC           = cashToClose > 0 ? (cumCF / holdYears) / cashToClose * 100 : 0;
-    const flows            = [-cashToClose].concat(cfByYear.map((c, i) => c + (i === holdYears - 1 ? netProceeds : 0)));
+    const totalProfit      = cumCF + (refiWithinHold ? cashOut : 0) + netProceeds - cashToClose;
+    const equityMult       = cashToClose > 0 ? (cumCF + (refiWithinHold ? cashOut : 0) + netProceeds) / cashToClose : 0;
+    const avgCoC           = cashToClose > 0 ? (cumCF / holdYears) / cashToClose * 100 : 0;   // blended — only displayed when there's no refi to split around
+    const flows            = [-cashToClose + (refiWithinHold && refiYear === 0 ? cashOut : 0)]
+      .concat(cfByYear.map((c, i) => {
+        let v = c;
+        if (refiWithinHold && refiYear > 0 && i === refiYear - 1) v += cashOut;   // cash-out lands at the end of the refi year
+        if (i === holdYears - 1) v += netProceeds;
+        return v;
+      }));
     const irrVal           = isCash ? avgCoC : irr(flows);
+
+    // Pre/post-refi average annual cash-on-cash — same "return on capital actually at risk" logic as
+    // Post-Refi Cash-on-Cash below: pre-refi is measured against your full cash invested, post-refi
+    // against whatever's still left in the deal after the cash-out.
+    let avgPreRefiCoC = null, avgPostRefiCoC = null;
+    if (refiWithinHold) {
+      const preYears  = refiYear;
+      const postYears = holdYears - refiYear;
+      if (preYears > 0 && cashToClose > 0) {
+        avgPreRefiCoC = (cfByYear.slice(0, preYears).reduce((a, b) => a + b, 0) / preYears) / cashToClose * 100;
+      }
+      if (postYears > 0) {
+        avgPostRefiCoC = cashLeftIn > 0
+          ? (cfByYear.slice(preYears).reduce((a, b) => a + b, 0) / postYears) / cashLeftIn * 100
+          : null;   // null = infinite (no capital left in)
+      }
+    }
+
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
-      <div class="ctc-header">${holdYears}-Year Projection &amp; Total Return${isValueAdd ? ' (ramps to stabilized)' : ''}</div>
+      <div class="ctc-header">${holdYears}-Year Projection &amp; Total Return${isValueAdd ? ' (ramps to stabilized)' : ''}${refiWithinHold ? ' · refi in Yr ' + refiYear : ''}</div>
       <table class="data-table" style="margin:8px 0;font-size:12px;">
         <thead><tr><th>Yr</th><th>Gross Rent</th><th>NOI</th><th>Cash Flow</th><th>Loan Bal</th></tr></thead>
         <tbody>${rows5}</tbody>
       </table>
       <div class="result-row"><span class="result-label">Total Cash Flow (${holdYears} yr)</span><span class="result-value">${(cumCF < 0 ? '-' : '') + fmt(cumCF)}</span></div>
-      <div class="result-row"><span class="result-label">Principal Paydown</span><span class="result-value good">${fmt(principalPaydown)}</span></div>
+      ${refiWithinHold ? `<div class="result-row"><span class="result-label">Cash-Out at Refinance (Yr ${refiYear})</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>` : ''}
+      <div class="result-row"><span class="result-label">Principal Paydown${refiWithinHold ? ' (since refi)' : ''}</span><span class="result-value good">${fmt(principalPaydown)}</span></div>
       <div class="result-row"><span class="result-label">${exitByIncome ? 'Value Created (income-approach exit)' : 'Appreciation Gain'}</span><span class="result-value good">${fmt(apprGain)}</span></div>
       <div class="result-row"><span class="result-label">Net Sale Proceeds (after ${(sellCostPct * 100).toFixed(1)}% &amp; payoff)</span><span class="result-value">${fmt(netProceeds)}</span></div>
-      <div class="result-row key"><span class="result-label">Total Profit (incl. sale, less cash in)</span><span class="result-value ${totalProfit < 0 ? 'bad' : 'good'}">${(totalProfit < 0 ? '-' : '') + fmt(totalProfit)}</span></div>
+      <div class="result-row key"><span class="result-label">Total Profit (incl. sale${refiWithinHold ? ' &amp; refi cash-out' : ''}, less cash in)</span><span class="result-value ${totalProfit < 0 ? 'bad' : 'good'}">${(totalProfit < 0 ? '-' : '') + fmt(totalProfit)}</span></div>
       <div class="result-row key"><span class="result-label">Equity Multiple</span><span class="result-value ${cls(equityMult, 2, 1)}">${equityMult.toFixed(2)}x</span></div>
       <div class="result-row key"><span class="result-label">IRR (${holdYears}-yr)</span><span class="result-value ${irrVal == null ? '' : cls(irrVal, 12, 8)}">${irrVal == null ? 'n/a' : fmtPct(irrVal)}</span></div>
-      <div class="result-row"><span class="result-label">Avg Annual Cash-on-Cash</span><span class="result-value">${fmtPct(avgCoC)}</span></div>
-      <div class="note">${isValueAdd ? 'Rents ramp from in-place to stabilized over ' + stabYears + ' yr (expenses track rent)' + (exitByIncome ? '; exit valued at final NOI ÷ ' + (arvCapRate * 100).toFixed(2) + '% cap' : '') + '. ' : ''}Assumes ${(rentG * 100).toFixed(1)}% rent growth, ${(expG * 100).toFixed(1)}% expense growth${exitByIncome ? '' : ', ' + (apprG * 100).toFixed(1) + '% appreciation'}, sold in year ${holdYears}.</div>
+      ${refiWithinHold
+        ? (avgPreRefiCoC != null ? `<div class="result-row"><span class="result-label">Avg Annual CoC — Pre-Refi (Yr 1–${refiYear})</span><span class="result-value">${fmtPct(avgPreRefiCoC)}</span></div>` : '')
+          + `<div class="result-row key"><span class="result-label">Avg Annual CoC — Post-Refi (Yr ${refiYear + 1}–${holdYears})</span><span class="result-value ${avgPostRefiCoC == null ? 'good' : ''}">${avgPostRefiCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(avgPostRefiCoC)}</span></div>`
+        : `<div class="result-row"><span class="result-label">Avg Annual Cash-on-Cash</span><span class="result-value">${fmtPct(avgCoC)}</span></div>`}
+      <div class="note">${isValueAdd ? 'Rents ramp from in-place to stabilized over ' + stabYears + ' yr (expenses track rent)' + (exitByIncome ? '; exit valued at final NOI ÷ ' + (arvCapRate * 100).toFixed(2) + '% cap' : '') + '. ' : ''}Assumes ${(rentG * 100).toFixed(1)}% rent growth, ${(expG * 100).toFixed(1)}% expense growth${exitByIncome ? '' : ', ' + (apprG * 100).toFixed(1) + '% appreciation'}, sold in year ${holdYears}.${refiWithinHold ? ' 🔁 marks the refi year — cash flow &amp; loan balance switch to the new loan from that point on (rehab loan is paid off in the refi), and the cash pulled out at closing is booked as its own event above and folded into total profit / equity multiple / IRR.' : ''}</div>
     </div>`;
   }
 
-  /* ── Refinance / BRRRR exit (#5) — ARV & NOI track the refinance year ── */
-  if (willRefi && (manualARV > 0 || isValueAdd) && arvUsed > 0 && !isCash) {
-    const refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
-    const refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
-    const refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
-    const refiYear    = Math.max(0, Math.round(parseFloat((document.getElementById('refiyear') || {}).value) || 1));
-    const noiRefi_yr  = noiAtYear(refiYear);              // owner's actual NOI at the year you refinance (respects Self-Managed/PM toggle) — drives post-refi cash flow
-    // ARV is a valuation figure — priced with a market-standard management fee, independent of the
-    // Self-Managed/PM toggle. A property's market value doesn't depend on how the owner runs it.
-    const noiRefi_yr_forValuation = noiAtYear(refiYear, configuredPmPct);
-    const estArvRefi  = arvCapRate > 0 ? noiRefi_yr_forValuation / arvCapRate : 0;
-    const arvRefi     = manualARV > 0 ? manualARV : estArvRefi;   // manual comp override still wins
-    const newLoan     = arvRefi * refiLtv;
-    const acqBalAtRefi= acqBalance(loan, mr, amortMonths, refiYear * 12, isBridge);  // bridge: no paydown, full balance; else paid down to the refi year
-    const payoff      = acqBalAtRefi + rehabLoan;        // refi clears the (paid-down) acquisition AND rehab loans
-    const cashOut     = newLoan - payoff;
-    const cashLeftIn  = cashToClose - cashOut;
-    const newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
-    const postCF      = noiRefi_yr / 12 - newPI;          // rehab loan is gone post-refi; NOI at the refi year
-    const postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
-    const grew        = isValueAdd && refiYear > stabYears;
+  /* ── Refinance / BRRRR exit (#5) — ARV & NOI track the refinance year. All the underlying
+     numbers (refiYear, newLoan, cashOut, postCF, etc.) are computed above, before the 5-yr
+     projection, so both boxes stay in sync. ── */
+  if (refiActive) {
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
       <div class="ctc-header">Refinance / BRRRR Exit — Year ${refiYear}</div>
       <div class="result-row key"><span class="result-label">Total Cash Invested (down payment + closing + rehab)</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
