@@ -1397,6 +1397,7 @@ function calc() {
     const grew        = isValueAdd && refiYear > stabYears;
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
       <div class="ctc-header">Refinance / BRRRR Exit — Year ${refiYear}</div>
+      <div class="result-row key"><span class="result-label">Total Cash Invested (down payment + closing + rehab)</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
       <div class="result-row"><span class="result-label">${grew ? 'NOI at Refi (Yr ' + refiYear + ', grown)' : 'Stabilized NOI'}</span><span class="result-value">${fmt(noiRefi_yr)}/yr</span></div>
       ${arvCapRate > 0 ? `<div class="result-row"><span class="result-label">Estimated ARV (mkt-rate NOI ÷ ${(arvCapRate * 100).toFixed(2)}% cap)</span><span class="result-value">${fmt(estArvRefi)}</span></div>` : ''}
       <div class="result-row key"><span class="result-label">ARV Used${manualARV > 0 ? ' (manual override)' : ' (Yr ' + refiYear + ' estimate)'}</span><span class="result-value">${fmt(arvRefi)}</span></div>
