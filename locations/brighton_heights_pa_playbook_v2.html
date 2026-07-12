@@ -305,7 +305,7 @@
       <div class="input-row"><label>Vacancy Rate (%)</label><input type="number" id="vac" value="8" oninput="calc()"></div>
       <div class="input-row"><label>Management Strategy</label><button class="toggle-btn" id="pm-toggle" style="width:100%;text-align:center;" onclick="togglePM()">PM Managed - Fee Included</button><div class="hint">Toggle self-management to calculate with no PM expense</div></div>
       <div class="input-row"><label>PM Fee (% of EGI)</label><input type="number" id="pmfee" value="10" oninput="calc()"></div>
-      <div class="input-row"><label>Insurance</label><div class="input-with-toggle"><input type="number" id="ins" value="1500" oninput="calc()"><button class="toggle-btn" id="ins-toggle" onclick="toggleIns()">/yr</button></div></div>
+      <div class="input-row"><label>Insurance</label><div class="input-with-toggle"><input type="number" id="ins" value="3000" oninput="calc()"><button class="toggle-btn" id="ins-toggle" onclick="toggleIns()">/yr</button></div></div>
       <div class="input-row"><label>Repairs and Maintenance (% gross rent/yr)</label><input type="number" id="capex" value="10" step="0.5" oninput="calc()"></div>
       <div class="input-row"><label>Other Expenses</label><div class="input-with-toggle"><input type="number" id="other" value="0" step="0.01" oninput="calc()"><button class="toggle-btn" id="other-toggle" onclick="toggleOther()">%</button></div><div class="hint">Toggle % of gross rent or direct monthly dollars</div></div>
       <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">
@@ -509,7 +509,7 @@ window.PLAYBOOK_CONFIG = {
 };
 </script>
 <script src="../shared/arv-model.js?v=arv-audit-20260712"></script>
-<script src="../shared/playbook.js?v=arv-opex-20260712"></script>
+<script src="../shared/playbook.js?v=arv-defaults-20260712"></script>
 <script>
 buildChecklist('pre-offer', [
   'Pull Allegheny County parcel record, assessed value, and current tax bills',

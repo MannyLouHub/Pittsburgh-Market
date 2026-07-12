@@ -181,7 +181,9 @@
         '<label>Stabilized Vacancy Rate (%)</label>' +
         '<input type="number" id="stabvac" value="' + (parseFloat((vacEl0 || {}).value) || 0) + '" oninput="this.dataset.touched=\'1\';calc()">' +
         '<div class="hint">Vacancy used for stabilized NOI and ARV. Tracks current vacancy until you edit it</div>';
-      stabRow.insertAdjacentElement('afterend', stabVacRow);
+      const vacRow0 = vacEl0 && vacEl0.closest('.input-row');
+      if (vacRow0) vacRow0.insertAdjacentElement('afterend', stabVacRow);
+      else stabRow.insertAdjacentElement('afterend', stabVacRow);
     }
 
     // Set initial residential/commercial state
@@ -261,9 +263,9 @@
             '<input type="number" id="arv" value="0" oninput="this.dataset.touched=\'1\';calc()">' +
             '<div class="hint">Optional. Leave at $0 for the automatic value. Use a comp-backed ARV for 2-4 units or a broker/appraisal-supported asset value for 5+ units</div></div>' +
           '<div class="input-row"><label>Refinance after stabilizing?</label>' +
-            '<button type="button" class="toggle-btn" id="willrefi-toggle" style="width:100%;text-align:center;" onclick="toggleWillRefi()">Yes — refinance (BRRRR)</button>' +
+            '<button type="button" class="toggle-btn" id="willrefi-toggle" style="width:100%;text-align:center;" onclick="toggleWillRefi()">No — buy &amp; hold</button>' +
             '<div class="hint">Yes = pull cash out with a new loan once stabilized (BRRRR). No = buy &amp; hold on the original financing — the Stabilized Deal section is then your after-stabilization return</div></div>' +
-          '<div id="refi-rows">' +
+          '<div id="refi-rows" style="display:none;">' +
             '<div class="input-row"><label>Refi LTV (%)</label><input type="number" id="refiltv" value="75" oninput="calc()"></div>' +
             '<div class="input-row"><label>Refi Rate (%)</label><input type="number" id="refirate" value="7.5" oninput="calc()"></div>' +
             '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="this.dataset.touched=\'1\';calc()">' +
@@ -549,7 +551,7 @@ let capexResMode = 'pct';    /* 'unit' = $/unit/yr · 'pct' = % of gross income 
 let sellerCreditMode = 'repairs';  /* 'repairs' = escrowed repair holdback · 'closing' = toward closing costs */
 let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
-let willRefi      = true;    /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
+let willRefi      = false;   /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
 let taxMode       = 'clr';   /* acquisition tax only: 'clr' = post-sale reassessment estimate · 'assessed' = current county assessed value */
 
 /* Loan Calculator state */
@@ -985,7 +987,8 @@ function calc() {
   const rate             = parseFloat(document.getElementById('rate').value) || 7.75;
   const rentGross        = parseFloat(document.getElementById('rent').value) || 0;
   const otherIncome      = parseFloat(document.getElementById('other_income').value) || 0;
-  const vacPct           = parseFloat(document.getElementById('vac').value) || 8;
+  const currentVacancyInput = parseFloat(document.getElementById('vac').value);
+  const vacPct           = Number.isFinite(currentVacancyInput) ? currentVacancyInput : 8;
   const configuredPmPct  = parseFloat(document.getElementById('pmfee').value) || 10;
   const pmPct            = pmManaged ? configuredPmPct : 0;
   const insRaw           = parseFloat(document.getElementById('ins').value) || 0;
@@ -1104,7 +1107,8 @@ function calc() {
 
   // ── Stabilized operations (at market rents) — value-add view ──
   const rentStab      = parseFloat((document.getElementById('rentstab') || {}).value) || rentGross;
-  const stabVacPct    = parseFloat((document.getElementById('stabvac') || {}).value) || vacPct;
+  const stabilizedVacancyInput = parseFloat((document.getElementById('stabvac') || {}).value);
+  const stabVacPct    = Number.isFinite(stabilizedVacancyInput) ? stabilizedVacancyInput : vacPct;
   const isValueAdd    = Math.abs(rentStab - rentGross) > 0.5 || Math.abs(stabVacPct - vacPct) > 0.05;
   const stabGross     = rentStab + otherIncome;
   const stabVacancy   = rentStab * stabVacPct / 100;

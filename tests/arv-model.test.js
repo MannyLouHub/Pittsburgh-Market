@@ -71,6 +71,14 @@ test('higher stabilized NOI increases ARV', () => {
   assert.ok(higher > lower);
 });
 
+test('zero stabilized vacancy is honored', () => {
+  const baseValue = calculateArv(base());
+  const noVacancy = calculateArv(base({ stabilizedVacancyPct: 0 }));
+
+  assert.equal(noVacancy.vacancyDeductionAnnual, 0);
+  assert.ok(noVacancy.finalArv > baseValue.finalArv);
+});
+
 test('higher exit cap rate decreases ARV', () => {
   const lowerCap = calculateArv(base({ exitCapRatePct: 7 })).finalArv;
   const higherCap = calculateArv(base({ exitCapRatePct: 9 })).finalArv;
