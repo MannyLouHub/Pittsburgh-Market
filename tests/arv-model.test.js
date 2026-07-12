@@ -27,8 +27,6 @@ function base(overrides = {}) {
     manualStabilizedTaxAnnual: 3800,
     clr: 0.5014,
     mills: 43.5382,
-    valuationMethod: 'income',
-    comparableArv: 190000,
     ...overrides
   };
 }
@@ -101,11 +99,11 @@ test('financing and rehab-financing terms do not change ARV', () => {
   assert.equal(changedFinancing, normal);
 });
 
-test('comparable and conservative valuation methods select the expected ARV', () => {
-  const income = calculateArv(base({ valuationMethod: 'income', comparableArv: 120000 }));
-  const comps = calculateArv(base({ valuationMethod: 'comps', comparableArv: 120000 }));
-  const conservative = calculateArv(base({ valuationMethod: 'conservative', comparableArv: 120000 }));
+test('manual ARV or asset-value override supersedes the automatic income value', () => {
+  const automatic = calculateArv(base());
+  const manual = calculateArv(base({ manualValue: 120000 }));
 
-  assert.equal(comps.finalArv, 120000);
-  assert.equal(conservative.finalArv, Math.min(income.incomeArv, 120000));
+  assert.equal(manual.finalArv, 120000);
+  assert.equal(manual.usesManualValue, true);
+  assert.equal(manual.incomeArv, automatic.incomeArv);
 });

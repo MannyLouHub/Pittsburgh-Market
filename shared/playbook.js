@@ -193,8 +193,6 @@
       const cfg0    = window.PLAYBOOK_CONFIG || {};
       const clrPct0 = cfg0.clr != null ? (cfg0.clr * 100).toFixed(1) : '';
       const mills0  = cfg0.mills != null ? cfg0.mills : '';
-      const pp0     = parseFloat((document.getElementById('pp') || {}).value) || 0;
-      const manualTax0 = (pp0 > 0 && cfg0.clr && mills0) ? Math.round(pp0 * cfg0.clr * (mills0 / 1000)) : '';
       const ext = document.createElement('div');
       ext.innerHTML =
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
@@ -255,30 +253,13 @@
           '</div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
-          '<div class="ctc-header">Stabilized Value &amp; Refinance (optional)</div>' +
-          '<div class="input-row"><label>Valuation Method</label>' +
-            '<select id="valuationmethod" onchange="calc()">' +
-              '<option value="income" selected>Income approach — stabilized NOI ÷ exit cap</option>' +
-              '<option value="comps">Comparable-sales approach — use comp value</option>' +
-              '<option value="conservative">Conservative value — lower of income and comps</option>' +
-            '</select>' +
-            '<div class="hint">Controls the final ARV used by equity margin, refinance sizing, and income-approach exit value</div></div>' +
-          '<div class="input-row"><label>Stabilized Cap Rate — for ARV (%)</label>' +
+        '<div class="ctc-header">Stabilized Value &amp; Refinance (optional)</div>' +
+          '<div class="input-row"><label>Stabilized Cap Rate — for Value (%)</label>' +
             '<input type="number" id="arvcaprate" value="8" oninput="calc()">' +
-            '<div class="hint">Stabilized value = stabilized NOI ÷ this cap rate. Sets the ARV, the equity margin, and the projection\'s sale price — applies whether or not you refinance. Bump Stabilized Rent above to trigger it</div></div>' +
-          '<div class="input-row"><label>Comparable-Sales Value / Comp ARV ($)</label>' +
+            '<div class="hint">Automatic value = stabilized NOI / this cap rate. Use the market cap rate for this asset; 5+ units are valued as commercial income property</div></div>' +
+          '<div class="input-row"><label>ARV / Asset Value Override ($)</label>' +
             '<input type="number" id="arv" value="0" oninput="this.dataset.touched=\'1\';calc()">' +
-            '<div class="hint">Use recent comp support or appraisal guidance. Required for Comparable-sales approach; optional for Conservative value</div></div>' +
-          '<div class="input-row"><label>Stabilized Tax Method for ARV</label>' +
-            '<select id="valuationtaxmethod" onchange="calc()">' +
-              '<option value="manual" selected>Manual stabilized tax input</option>' +
-              '<option value="current">Current assessed taxes</option>' +
-              '<option value="reassessed">Estimated post-sale reassessed taxes</option>' +
-            '</select>' +
-            '<div class="hint">Only this tax method feeds stabilized NOI for ARV. If you choose reassessed taxes, ARV can move with purchase price and the calculator shows that tax-only impact</div></div>' +
-          '<div class="input-row"><label>Manual Stabilized Property Tax ($/yr)</label>' +
-            '<input type="number" id="stabilizedtax" value="' + manualTax0 + '" oninput="calc()">' +
-            '<div class="hint">Fixed annual tax used for ARV when Manual stabilized tax input is selected. It does not auto-change when purchase price changes</div></div>' +
+            '<div class="hint">Optional. Leave at $0 for the automatic value. Use a comp-backed ARV for 2-4 units or a broker/appraisal-supported asset value for 5+ units</div></div>' +
           '<div class="input-row"><label>Refinance after stabilizing?</label>' +
             '<button type="button" class="toggle-btn" id="willrefi-toggle" style="width:100%;text-align:center;" onclick="toggleWillRefi()">Yes — refinance (BRRRR)</button>' +
             '<div class="hint">Yes = pull cash out with a new loan once stabilized (BRRRR). No = buy &amp; hold on the original financing — the Stabilized Deal section is then your after-stabilization return</div></div>' +
@@ -1113,11 +1094,13 @@ function calc() {
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
   const pricePerUnit   = units ? pp / units : 0;
 
-  const valuationMethod    = (document.getElementById('valuationmethod') || {}).value || 'income';
-  const valuationTaxMethod = (document.getElementById('valuationtaxmethod') || {}).value || 'manual';
-  const manualStabTaxAnnual = parseFloat((document.getElementById('stabilizedtax') || {}).value) || 0;
-  const compARV            = parseFloat((document.getElementById('arv') || {}).value) || 0;
-  const currentAssessedForValuation = (isFinite(assessedIn) && assessedIn > 0) ? assessedIn : 0;
+  // Valuation follows the Property Taxes section automatically. A user-entered
+  // assessment is used when available; otherwise the CLR reassessment estimate applies.
+  const manualARV = parseFloat((document.getElementById('arv') || {}).value) || 0;
+  const valuationTaxMethod = taxMode === 'assessed' && isFinite(assessedIn) && assessedIn > 0
+    ? 'current'
+    : 'reassessed';
+  const currentAssessedForValuation = assessedVal;
 
   // ── Stabilized operations (at market rents) — value-add view ──
   const rentStab      = parseFloat((document.getElementById('rentstab') || {}).value) || rentGross;
@@ -1130,11 +1113,7 @@ function calc() {
   const stabRepairs   = rentStab * capexPct / 100;
   const stabOther     = otherMode === 'pct' ? rentStab * otherInput / 100 : otherMonthly;
   const stabCapexRes  = capexResMode === 'pct' ? stabGross * capexResRaw / 100 : units * capexResRaw / 12;
-  const stabTaxAnnual = valuationTaxMethod === 'current'
-    ? currentAssessedForValuation * (millsUsed / 1000)
-    : valuationTaxMethod === 'reassessed'
-      ? pp * cfg.clr * (millsUsed / 1000)
-      : manualStabTaxAnnual;
+  const stabTaxAnnual = monthlyTax * 12;
   const stabTaxMonthly = stabTaxAnnual / 12;
   const stabTotalExp  = stabTaxMonthly + insMonthly + stabPM + stabRepairs + stabOther + stabCapexRes + utilitiesMonthly;
   const stabNOI       = stabEGI - stabTotalExp;
@@ -1210,19 +1189,17 @@ function calc() {
       exitCapRatePct: arvCapRate * 100,
       taxMethod: valuationTaxMethod,
       currentAssessedValue: currentAssessedForValuation,
-      manualStabilizedTaxAnnual: manualStabTaxAnnual * expenseFactor,
+      manualStabilizedTaxAnnual: 0,
       clr: cfg.clr,
       mills: millsUsed,
-      valuationMethod: valuationMethod,
-      comparableArv: compARV
+      manualValue: manualARV
     });
   }
 
   const stabilizedValuation = valuationAtYear(1);
-  const estimatedARV  = stabilizedValuation.finalArv;
+  const estimatedARV  = stabilizedValuation.incomeArv;
   const incomeARV     = stabilizedValuation.incomeArv;
-  const manualARV     = compARV;
-  const arvUsed       = estimatedARV;   // as-stabilized (day-1) value for the equity-margin/refi tests
+  const arvUsed       = stabilizedValuation.finalArv;   // as-stabilized (day-1) value for the equity-margin/refi tests
 
   // Helpers
   function fmt(n)           { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); }
@@ -1331,23 +1308,25 @@ function calc() {
     </div>`;
 	  }
 
-  const arvMethodLabel = valuationMethod === 'comps'
-    ? 'Comparable-sales approach'
-    : valuationMethod === 'conservative'
-      ? 'Conservative value'
-      : 'Income approach';
+  const valueTerm = isCommercial ? 'Asset Value' : 'ARV';
+  const automaticValueLabel = isCommercial
+    ? 'Commercial income approach'
+    : 'Stabilized income approach';
+  const arvMethodLabel = manualARV > 0
+    ? 'Manual ' + valueTerm + ' override'
+    : automaticValueLabel;
   const taxImpactLine = valuationTaxMethod === 'reassessed'
-    ? `<div class="result-row"><span class="result-label">Price-linked tax impact on income ARV</span><span class="result-value warn">${stabilizedValuation.priceLinkedTaxArvImpact < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxArvImpact)} total · ${stabilizedValuation.priceLinkedTaxImpactPer25k < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxImpactPer25k)} per $25K price change</span></div>`
+    ? `<div class="result-row"><span class="result-label">Price-linked tax impact on income ${valueTerm}</span><span class="result-value warn">${stabilizedValuation.priceLinkedTaxArvImpact < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxArvImpact)} total · ${stabilizedValuation.priceLinkedTaxImpactPer25k < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxImpactPer25k)} per $25K price change</span></div>`
     : '';
   html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
-    <div class="ctc-header">ARV Calculation Breakdown</div>
-    <div class="result-row"><span class="result-label">Valuation Method</span><span class="result-value">${arvMethodLabel}</span></div>
+    <div class="ctc-header">${valueTerm} Calculation Breakdown</div>
+    <div class="result-row"><span class="result-label">Valuation Basis</span><span class="result-value">${arvMethodLabel}</span></div>
     <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Income</span><span class="result-value">${fmt(stabilizedValuation.rentGsiAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Vacancy &amp; Credit Loss (${stabVacPct}%)</span><span class="result-value bad">-${fmt(stabilizedValuation.vacancyDeductionAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">+${fmt(stabilizedValuation.otherIncomeAnnual)}/yr</span></div>
     <div class="result-row key"><span class="result-label">Effective Gross Income</span><span class="result-value">${fmt(stabilizedValuation.effectiveGrossIncomeAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Property Taxes (${stabilizedValuation.taxLabel})</span><span class="result-value">-${fmt(stabilizedValuation.expenses.propertyTaxAnnual)}/yr</span></div>
-    ${valuationTaxMethod === 'current' && currentAssessedForValuation <= 0 ? `<div class="result-row"><span class="result-label">⚠ Current assessed value missing</span><span class="result-value warn">Enter assessed value above or choose manual stabilized tax</span></div>` : ''}
+    ${taxMode === 'assessed' && (!isFinite(assessedIn) || assessedIn <= 0) ? `<div class="result-row"><span class="result-label">⚠ Current assessed value missing</span><span class="result-value warn">Using the CLR tax estimate until an assessed value is entered above</span></div>` : ''}
     <div class="result-row"><span class="result-label">Insurance</span><span class="result-value">-${fmt(stabilizedValuation.expenses.insuranceAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Management (${configuredPmPct}% of EGI)</span><span class="result-value">-${fmt(stabilizedValuation.expenses.managementAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Repairs &amp; Maintenance (${capexPct}% of rent)</span><span class="result-value">-${fmt(stabilizedValuation.expenses.repairsAnnual)}/yr</span></div>
@@ -1356,11 +1335,11 @@ function calc() {
     <div class="result-row"><span class="result-label">Owner-Paid Utilities</span><span class="result-value">-${fmt(stabilizedValuation.expenses.utilitiesAnnual)}/yr</span></div>
     <div class="result-row key"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabilizedValuation.stabilizedNoiAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Exit Cap Rate</span><span class="result-value">${(arvCapRate * 100).toFixed(2)}%</span></div>
-    <div class="result-row"><span class="result-label">Income Approach Value</span><span class="result-value">${fmt(incomeARV)}</span></div>
-    ${manualARV > 0 || valuationMethod !== 'income' ? `<div class="result-row"><span class="result-label">Comparable-Sales Value</span><span class="result-value">${manualARV > 0 ? fmt(manualARV) : 'Not entered'}</span></div>` : ''}
+    <div class="result-row"><span class="result-label">Automatic Income Value</span><span class="result-value">${fmt(incomeARV)}</span></div>
+    ${manualARV > 0 ? `<div class="result-row"><span class="result-label">Manual ${valueTerm} Override</span><span class="result-value">${fmt(manualARV)}</span></div>` : ''}
     ${taxImpactLine}
-    <div class="result-row key"><span class="result-label">Final Calculated ARV</span><span class="result-value good">${fmt(arvUsed)}</span></div>
-    <div class="note">NOI excludes mortgage payments, principal, interest, PMI/MIP, depreciation, income taxes, acquisition costs, cash invested, refinance proceeds, and loan balances. Those items affect cash flow, refinance proceeds, IRR, and total return, not ARV.</div>
+    <div class="result-row key"><span class="result-label">Final ${valueTerm}</span><span class="result-value good">${fmt(arvUsed)}</span></div>
+    <div class="note">The tax source follows the Property Taxes section above. With the post-sale reassessment estimate, purchase price can affect value only through property tax. NOI excludes mortgage payments, principal, interest, PMI/MIP, depreciation, income taxes, acquisition costs, cash invested, refinance proceeds, and loan balances.</div>
   </div>`;
 
 	  // Cash to Close summary
@@ -1383,7 +1362,7 @@ function calc() {
   </div>`;
 
   /* ── Equity margin — all-in vs. ARV (the overpay guard) ── */
-  if ((rehab > 0 || (manualARV > 0 && valuationMethod !== 'income') || isValueAdd) && arvUsed > 0) {
+  if ((rehab > 0 || manualARV > 0 || isValueAdd) && arvUsed > 0) {
     const allInCost   = pp + rehab + closingCostAmt;          // total to acquire + fix (before any credit)
     const allInPctARV = allInCost / arvUsed * 100;
     const equityAtARV = arvUsed - allInCost;
@@ -1447,7 +1426,7 @@ function calc() {
   /* ── Refinance parameters — hoisted above the 5-yr projection so the projection can react to
      the actual refinance event (loan switch + cash-out), instead of assuming the original
      acquisition loan runs for the entire hold. Reused as-is by the Refinance/BRRRR Exit box below. ── */
-  const refiActive = willRefi && (isValueAdd || (valuationMethod !== 'income' && manualARV > 0)) && arvUsed > 0 && !isCash;
+  const refiActive = willRefi && (isValueAdd || manualARV > 0) && arvUsed > 0 && !isCash;
   let refiLtv = 0, refiRateMo = 0, refiAmortYr = 30, refiYear = 0;
   let noiRefi_yr = 0, noiRefi_yr_forValuation = 0, estArvRefi = 0, arvRefi = 0, valuationTaxRefi_yr = 0;
   let refiValuation = null;
@@ -1458,13 +1437,12 @@ function calc() {
     refiAmortYr = parseFloat((document.getElementById('refiamort') || {}).value) || 30;
     refiYear    = Math.max(0, Math.round(parseFloat((document.getElementById('refiyear') || {}).value) || 1));
     noiRefi_yr  = noiAtYear(refiYear);              // owner's actual NOI at the year you refinance (respects Self-Managed/PM toggle) — drives post-refi cash flow
-    // ARV is a valuation figure — priced with market-standard operations and tax, independent of
-    // the purchase price and Self-Managed/PM toggle.
+    // Value is priced with market-standard operations and the automatic Property Taxes source.
     refiValuation = valuationAtYear(refiYear);
     noiRefi_yr_forValuation = refiValuation.stabilizedNoiAnnual;
     valuationTaxRefi_yr = refiValuation.expenses.propertyTaxAnnual;
-    estArvRefi  = refiValuation.finalArv;
-    arvRefi     = estArvRefi;
+    estArvRefi  = refiValuation.incomeArv;
+    arvRefi     = refiValuation.finalArv;
     newLoan     = arvRefi * refiLtv;
     acqBalAtRefi= acqBalance(loan, mr, amortMonths, refiYear * 12, isBridge);  // bridge: no paydown, full balance; else paid down to the refi year
     payoff      = acqBalAtRefi + rehabLoan;        // refi clears the (paid-down) acquisition AND rehab loans
@@ -1568,16 +1546,16 @@ function calc() {
       <div class="result-row"><span class="result-label">${grew ? 'Owner NOI at Refi (Yr ' + refiYear + ', grown)' : 'Owner Stabilized NOI'}</span><span class="result-value">${fmt(noiRefi_yr)}/yr</span></div>
       <div class="result-row"><span class="result-label">Valuation NOI at Refi</span><span class="result-value">${fmt(noiRefi_yr_forValuation)}/yr</span></div>
       <div class="result-row"><span class="result-label">Valuation Tax Basis</span><span class="result-value">${fmt(valuationTaxRefi_yr)}/yr · ${refiValuation.taxLabel}</span></div>
-      <div class="result-row"><span class="result-label">Calculated ARV (${arvMethodLabel})</span><span class="result-value">${fmt(estArvRefi)}</span></div>
-      <div class="result-row key"><span class="result-label">ARV Used (Yr ${refiYear})</span><span class="result-value">${fmt(arvRefi)}</span></div>
-      <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ARV)</span><span class="result-value">${fmt(newLoan)}</span></div>
+      <div class="result-row"><span class="result-label">Automatic ${valueTerm} (${automaticValueLabel})</span><span class="result-value">${fmt(estArvRefi)}</span></div>
+      <div class="result-row key"><span class="result-label">${valueTerm} Used (Yr ${refiYear})</span><span class="result-value">${fmt(arvRefi)}</span></div>
+      <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ${valueTerm})</span><span class="result-value">${fmt(newLoan)}</span></div>
       <div class="result-row"><span class="result-label">Loans Paid Off${rehabLoan > 0 ? ' (acquisition + rehab)' : ''}${refiYear > 0 ? ', bal. @ yr ' + refiYear : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
       <div class="result-row"><span class="result-label">Cash-Out (new loan − payoff)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
       <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
       <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
       <div class="result-row"><span class="result-label">Post-Refi Cash Flow (Yr ${refiYear})</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
-      <div class="note">Refinance modeled in year ${refiYear}: ARV uses the selected valuation method and valuation tax method from the ARV breakdown, independent of debt service and acquisition cash. ${valuationTaxMethod === 'reassessed' ? 'Because reassessed taxes are selected, purchase price can affect ARV only through the displayed tax line.' : 'Changing purchase price, down payment, interest rate, or rehab financing does not change ARV.'}${grew ? ' It reflects rent growth by year ' + refiYear + ' — matching the projection.' : ''}${isBridge ? ` The interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down.` : ` The acquisition loan is paid down to ${fmt(acqBalAtRefi)}.`} Cash left in ≤ $0 = effectively infinite return.</div>
+      <div class="note">Refinance modeled in year ${refiYear}: ${valueTerm} defaults to that year's stabilized NOI divided by the cap rate, unless the override above is entered. Property taxes follow the automatic source in the Property Taxes section. ${valuationTaxMethod === 'reassessed' ? 'With the post-sale reassessment estimate, purchase price can affect value only through the tax line.' : 'Changing down payment, interest rate, or rehab financing does not change value.'}${grew ? ' It reflects rent growth by year ' + refiYear + ' — matching the projection.' : ''}${isBridge ? ` The interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down.` : ` The acquisition loan is paid down to ${fmt(acqBalAtRefi)}.`} Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
 
     /* ── Bridge-only: Stabilization — Pre vs. Post Refinance (#6) ──

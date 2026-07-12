@@ -28,8 +28,7 @@
     const taxMethod = input.taxMethod || 'manual';
     const currentAssessedValue = num(input.currentAssessedValue);
     const manualTaxAnnual = num(input.manualStabilizedTaxAnnual);
-    const valuationMethod = input.valuationMethod || 'income';
-    const comparableArv = num(input.comparableArv);
+    const manualValue = num(input.manualValue);
 
     const rentGsiAnnual = rentMonthly * 12;
     const vacancyDeductionAnnual = rentGsiAnnual * vacancyPct / 100;
@@ -71,12 +70,7 @@
     const stabilizedNoiAnnual = effectiveGrossIncomeAnnual - operatingExpensesAnnual;
     const incomeArv = capRate > 0 ? Math.max(0, stabilizedNoiAnnual / capRate) : 0;
 
-    let finalArv = incomeArv;
-    if (valuationMethod === 'comps') {
-      finalArv = comparableArv;
-    } else if (valuationMethod === 'conservative') {
-      finalArv = comparableArv > 0 ? Math.min(incomeArv, comparableArv) : incomeArv;
-    }
+    const finalArv = manualValue > 0 ? manualValue : incomeArv;
 
     const reassessedTaxAnnual = purchasePrice * clr * (mills / 1000);
     const priceLinkedTaxArvImpact = (taxMethod === 'reassessed' && capRate > 0)
@@ -87,7 +81,6 @@
       : 0;
 
     return {
-      valuationMethod: valuationMethod,
       taxMethod: taxMethod,
       taxLabel: taxLabel,
       rentGsiAnnual: rentGsiAnnual,
@@ -107,7 +100,8 @@
       stabilizedNoiAnnual: stabilizedNoiAnnual,
       exitCapRate: capRate,
       incomeArv: incomeArv,
-      comparableArv: comparableArv,
+      manualValue: manualValue,
+      usesManualValue: manualValue > 0,
       finalArv: Math.max(0, finalArv),
       priceLinkedTaxArvImpact: priceLinkedTaxArvImpact,
       priceLinkedTaxImpactPer25k: priceLinkedTaxImpactPer25k
