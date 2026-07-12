@@ -1450,6 +1450,7 @@ function calc() {
   const refiActive = willRefi && (isValueAdd || (valuationMethod !== 'income' && manualARV > 0)) && arvUsed > 0 && !isCash;
   let refiLtv = 0, refiRateMo = 0, refiAmortYr = 30, refiYear = 0;
   let noiRefi_yr = 0, noiRefi_yr_forValuation = 0, estArvRefi = 0, arvRefi = 0, valuationTaxRefi_yr = 0;
+  let refiValuation = null;
   let newLoan = 0, acqBalAtRefi = 0, payoff = 0, cashOut = 0, cashLeftIn = 0, newPI = 0, postCF = 0, postCoC = null, grew = false;
   if (refiActive) {
     refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
@@ -1459,7 +1460,7 @@ function calc() {
     noiRefi_yr  = noiAtYear(refiYear);              // owner's actual NOI at the year you refinance (respects Self-Managed/PM toggle) — drives post-refi cash flow
     // ARV is a valuation figure — priced with market-standard operations and tax, independent of
     // the purchase price and Self-Managed/PM toggle.
-    const refiValuation = valuationAtYear(refiYear);
+    refiValuation = valuationAtYear(refiYear);
     noiRefi_yr_forValuation = refiValuation.stabilizedNoiAnnual;
     valuationTaxRefi_yr = refiValuation.expenses.propertyTaxAnnual;
     estArvRefi  = refiValuation.finalArv;
