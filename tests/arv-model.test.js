@@ -78,6 +78,15 @@ test('higher exit cap rate decreases ARV', () => {
   assert.ok(higherCap < lowerCap);
 });
 
+test('operating expense percentage is calculated from EGI before debt service', () => {
+  const valuation = calculateArv(base());
+
+  nearlyEqual(
+    valuation.operatingExpensePct,
+    valuation.operatingExpensesAnnual / valuation.effectiveGrossIncomeAnnual * 100
+  );
+});
+
 test('financing and rehab-financing terms do not change ARV', () => {
   const normal = calculateArv(base({
     loanAmount: 140000,

@@ -68,6 +68,9 @@
       utilitiesAnnual;
 
     const stabilizedNoiAnnual = effectiveGrossIncomeAnnual - operatingExpensesAnnual;
+    const operatingExpensePct = effectiveGrossIncomeAnnual > 0
+      ? operatingExpensesAnnual / effectiveGrossIncomeAnnual * 100
+      : 0;
     const incomeArv = capRate > 0 ? Math.max(0, stabilizedNoiAnnual / capRate) : 0;
 
     const finalArv = manualValue > 0 ? manualValue : incomeArv;
@@ -97,6 +100,7 @@
         utilitiesAnnual: utilitiesAnnual
       },
       operatingExpensesAnnual: operatingExpensesAnnual,
+      operatingExpensePct: operatingExpensePct,
       stabilizedNoiAnnual: stabilizedNoiAnnual,
       exitCapRate: capRate,
       incomeArv: incomeArv,

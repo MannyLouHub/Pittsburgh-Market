@@ -1116,6 +1116,7 @@ function calc() {
   const stabTaxAnnual = monthlyTax * 12;
   const stabTaxMonthly = stabTaxAnnual / 12;
   const stabTotalExp  = stabTaxMonthly + insMonthly + stabPM + stabRepairs + stabOther + stabCapexRes + utilitiesMonthly;
+  const stabOperatingExpPct = stabEGI > 0 ? stabTotalExp / stabEGI * 100 : 0;
   const stabNOI       = stabEGI - stabTotalExp;
   const stabNOI_yr    = stabNOI * 12;
   const stabCF        = stabNOI - pi - pmiMonthly - rehabPI;
@@ -1298,6 +1299,7 @@ function calc() {
       <div class="result-row"><span class="result-label">Stabilized GRM</span><span class="result-value ${grmStab <= 10 ? 'good' : grmStab <= 12 ? 'warn' : 'bad'}">${grmStab.toFixed(1)}x (target ≤10)</span></div>
       <div class="result-row"><span class="result-label">Stabilized Property Tax (${stabilizedValuation.taxLabel})</span><span class="result-value">${fmt(stabTaxMonthly)}/mo · ${fmt(stabTaxAnnual)}/yr</span></div>
       <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${fmt(stabTotalExp)}/mo</span></div>
+      <div class="result-row key"><span class="result-label">Stabilized Operating Expense %</span><span class="result-value">${fmtPct(stabOperatingExpPct)} of EGI</span></div>
       <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI)}/mo · ${fmt(stabNOI_yr)}/yr</span></div>
       <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${(stabCF < 0 ? '-' : '') + fmt(stabCF)}/mo</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cap Rate</span><span class="result-value ${cls(stabCapRate, 8, 6.5)}">${fmtPct(stabCapRate)}</span></div>
@@ -1333,6 +1335,7 @@ function calc() {
     <div class="result-row"><span class="result-label">Other Operating Expenses (${otherMode === 'pct' ? otherInput + '% of rent' : fmt(otherMonthly) + '/mo'})</span><span class="result-value">-${fmt(stabilizedValuation.expenses.otherExpenseAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Replacement Reserves (${capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr'})</span><span class="result-value">-${fmt(stabilizedValuation.expenses.capexReserveAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Owner-Paid Utilities</span><span class="result-value">-${fmt(stabilizedValuation.expenses.utilitiesAnnual)}/yr</span></div>
+    <div class="result-row key"><span class="result-label">Valuation Operating Expense %</span><span class="result-value">${fmtPct(stabilizedValuation.operatingExpensePct)} of EGI</span></div>
     <div class="result-row key"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabilizedValuation.stabilizedNoiAnnual)}/yr</span></div>
     <div class="result-row"><span class="result-label">Exit Cap Rate</span><span class="result-value">${(arvCapRate * 100).toFixed(2)}%</span></div>
     <div class="result-row"><span class="result-label">Automatic Income Value</span><span class="result-value">${fmt(incomeARV)}</span></div>
