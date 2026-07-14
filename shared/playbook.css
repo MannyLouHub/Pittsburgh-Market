@@ -15,7 +15,7 @@
   /* coral-led accents (light mode remaps these to gold below) */
   --accent:#ff6f61;--accent-hover:#ff4500;--accent-tint:rgba(255,111,97,0.10);--link:#ff6f61;--tag-dim:rgba(255,255,255,0.08);
   /* themeable surfaces — light mode overrides these only */
-  --bad:#e07070;--warn:#e09a40;--accent-strong:var(--gold);--btn-accent:var(--gold);
+  --bad:#e07070;--warn:#e09a40;--accent-strong:var(--gold);--btn-accent:var(--gold);--accent-text:var(--accent);
   --panel:rgba(0,0,0,0.20);--panel-strong:rgba(0,0,0,0.22);
   --input-bg:rgba(0,0,0,0.30);--row-line:rgba(255,255,255,0.04);--row-hover:rgba(255,255,255,0.02);
   --card-shadow:none;--watermark:rgba(201,168,76,0.05);--badge-text:var(--steel);
@@ -30,8 +30,8 @@
   --yellow:#9a6516;--text:#102a43;--text-muted:#486581;
   --border:#dcdfcb;
   /* accents stay gold/navy in light — matches the pre-token values so light is unchanged */
-  --accent:#c9a84c;--accent-hover:#c9a84c;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(61,69,96,0.5);
-  --bad:#bf3b30;--warn:#9a6516;--accent-strong:#876d24;--btn-accent:#243b53;
+  --accent:#c9a84c;--accent-hover:#876d24;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(61,69,96,0.5);
+  --bad:#bf3b30;--warn:#9a6516;--accent-strong:#876d24;--btn-accent:#243b53;--accent-text:var(--accent-strong);
   --panel:rgba(13,27,42,0.045);--panel-strong:rgba(13,27,42,0.055);
   --input-bg:#ffffff;--row-line:rgba(13,27,42,0.08);--row-hover:rgba(13,27,42,0.025);
   --card-shadow:0 1px 2px rgba(13,27,42,0.06),0 2px 6px rgba(13,27,42,0.05);
@@ -62,7 +62,7 @@ a{color:var(--link);}
 .header::before{content:'PGH';position:absolute;right:-10px;top:-20px;font-family:'Playfair Display',serif;font-size:120px;font-weight:900;color:var(--watermark);pointer-events:none;}
 .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;max-width:var(--max-w);margin:0 auto;}
 .header h1{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--cream);line-height:1.1;}
-.header h1 span{color:var(--gold);}
+.header h1 span{color:var(--accent-strong);}
 .header-sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);margin-top:5px;letter-spacing:0.5px;}
 .header-tags{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px;}
 .header-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;letter-spacing:0.5px;}
@@ -79,7 +79,7 @@ a{color:var(--link);}
 .tabs-inner::-webkit-scrollbar{display:none;}
 .tab{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.8px;padding:11px 15px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;text-transform:uppercase;}
 .tab:hover{color:var(--text);}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-tint);}
+.tab.active{color:var(--accent-text);border-bottom-color:var(--accent);background:var(--accent-tint);}
 
 /* ─── Content & Panels ─────────────────────────────────────── */
 .content{padding:20px 24px;max-width:var(--max-w);margin:0 auto;}
@@ -100,7 +100,7 @@ a{color:var(--link);}
 .card{background:var(--steel-mid);border:1px solid var(--border);padding:14px;position:relative;box-shadow:var(--card-shadow);}
 .card-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
 .card-value{font-family:'IBM Plex Mono',monospace;font-size:23px;font-weight:600;color:var(--cream);line-height:1.1;}
-.card-value.gold{color:var(--gold);}
+.card-value.gold{color:var(--accent-strong);}
 .card-value.green{color:var(--green-light);}
 .card-value.red{color:var(--bad);}
 .card-sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
