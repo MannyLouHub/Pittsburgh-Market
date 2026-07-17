@@ -30,7 +30,7 @@
   --yellow:#9a6516;--text:#102a43;--text-muted:#486581;
   --border:#dcdfcb;
   /* accents stay gold/navy in light — matches the pre-token values so light is unchanged */
-  --accent:#c9a84c;--accent-hover:#876d24;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(61,69,96,0.5);
+  --accent:#c9a84c;--accent-hover:#876d24;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(13,27,42,0.08);
   --bad:#bf3b30;--warn:#9a6516;--accent-strong:#876d24;--btn-accent:#243b53;--accent-text:var(--accent-strong);
   --panel:rgba(13,27,42,0.045);--panel-strong:rgba(13,27,42,0.055);
   --input-bg:#ffffff;--row-line:rgba(13,27,42,0.08);--row-hover:rgba(13,27,42,0.025);
@@ -72,6 +72,7 @@ a{color:var(--link);}
 .badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
 .badge{background:var(--gold);color:var(--badge-text);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:3px 8px;letter-spacing:1px;white-space:nowrap;}
 .badge.alt{background:var(--steel-light);color:var(--text-muted);}
+:root[data-theme="light"] .badge.alt{color:var(--btn-accent);}
 
 /* ─── Tab Navigation ───────────────────────────────────────── */
 .tabs{background:var(--steel-mid);border-bottom:1px solid var(--border);}

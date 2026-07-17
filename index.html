@@ -26,7 +26,7 @@
     --green:#2d7a4f;--green-light:#226b43;--red:#a52f2f;
     --yellow:#9a6516;--text:#102a43;--text-muted:#486581;
     --border:#dcdfcb;
-    --accent:#c9a84c;--accent-hover:#876d24;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(61,69,96,0.5);
+    --accent:#c9a84c;--accent-hover:#876d24;--accent-tint:rgba(201,168,76,0.06);--link:#876d24;--tag-dim:rgba(13,27,42,0.08);
     --btn-accent:#243b53;--badge-text:#0d1b2a;--accent-strong:#876d24;--accent-text:var(--accent-strong);
     --bad:#bf3b30;--warn:#9a6516;
     --card-shadow:0 1px 2px rgba(13,27,42,0.06),0 2px 6px rgba(13,27,42,0.05);
@@ -53,6 +53,7 @@
   .header-badges{display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;}
   .badge{background:var(--gold);color:var(--badge-text);font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;padding:3px 10px;letter-spacing:1px;white-space:nowrap;}
   .badge.dim{background:var(--steel-light);color:var(--text-muted);}
+  :root[data-theme="light"] .badge.dim{color:var(--btn-accent);}
 
   /* MAIN */
   .main{max-width:1100px;margin:0 auto;padding:36px 40px 60px;}

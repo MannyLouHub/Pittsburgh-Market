@@ -488,7 +488,7 @@
         'and <strong style="color:var(--text);">Interest-Only</strong> (used by private lenders — lower monthly, full principal due at balloon). ' +
         'Enable <strong style="color:var(--text);">Balloon</strong> for any loan with a lump-sum payoff date.' +
       '</div>' +
-      '<div style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:16px;">' +
+      '<div style="background:var(--panel-strong);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:16px;">' +
         '<div class="input-row">' +
           '<label>Loan Amount — P</label>' +
           '<input type="number" id="lc-principal" value="200000" oninput="runLoanCalc()">' +
@@ -1271,13 +1271,13 @@ function calc() {
     color = 'var(--green-light)';
   } else if (capRate >= 6.5 && dscr >= 1.0 && cf > 0) {
     verdict = '🟡 MARGINAL — Verify rent and tax before proceeding';
-    color = '#e09a40';
+    color = 'var(--warn)';
   } else if (cf >= -200 && capRate >= 5.5) {
     verdict = '🟠 WEAK — Requires a different strategy or documented income upside';
-    color = '#e09a40';
+    color = 'var(--warn)';
   } else {
     verdict = '🔴 PASS — Does not pencil under the selected management strategy';
-    color = '#e07070';
+    color = 'var(--bad)';
   }
   html += `<div class="verdict" style="border-color:${color};color:${color};">${verdict}</div>`;
 
@@ -1287,14 +1287,14 @@ function calc() {
     if (stabCapRate >= 8 && stabCoC >= 7 && stabDSCR >= dscrMin && stabCF >= 150 * units) {
       sVerdict = '🟢 STRONG once stabilized — pencils at market rents'; sColor = 'var(--green-light)';
     } else if (stabCapRate >= 6.5 && stabDSCR >= 1.0 && stabCF > 0) {
-      sVerdict = '🟡 MARGINAL once stabilized — verify the rent bump is achievable'; sColor = '#e09a40';
+      sVerdict = '🟡 MARGINAL once stabilized — verify the rent bump is achievable'; sColor = 'var(--warn)';
     } else if (stabCF >= -200 && stabCapRate >= 5.5) {
-      sVerdict = '🟠 WEAK even stabilized — thin at market rents'; sColor = '#e09a40';
+      sVerdict = '🟠 WEAK even stabilized — thin at market rents'; sColor = 'var(--warn)';
     } else {
-      sVerdict = '🔴 PASS even stabilized — the rent bump does not rescue it'; sColor = '#e07070';
+      sVerdict = '🔴 PASS even stabilized — the rent bump does not rescue it'; sColor = 'var(--bad)';
     }
     const rentLift = rentGross > 0 ? (rentStab / rentGross - 1) * 100 : 0;
-    html += `<div style="margin-top:12px;border:1px solid ${sColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
+    html += `<div style="margin-top:12px;border:1px solid ${sColor};padding:12px 14px;background:var(--panel);">
       <div class="ctc-header" style="color:${sColor};">Stabilized Deal — at Market Rents (${rentLift >= 0 ? '+' : ''}${rentLift.toFixed(0)}% vs. in-place)</div>
       <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Rent</span><span class="result-value">${fmt(rentStab)}/mo · ${fmt(rentStab * 12)}/yr</span></div>
       <div class="result-row"><span class="result-label">Stabilized Vacancy (${stabVacPct}%)</span><span class="result-value bad">-${fmt(stabVacancy)}/mo</span></div>
@@ -1324,7 +1324,7 @@ function calc() {
   const taxImpactLine = valuationTaxMethod === 'reassessed'
     ? `<div class="result-row"><span class="result-label">Price-linked tax impact on income ${valueTerm}</span><span class="result-value warn">${stabilizedValuation.priceLinkedTaxArvImpact < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxArvImpact)} total · ${stabilizedValuation.priceLinkedTaxImpactPer25k < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxImpactPer25k)} per $25K price change</span></div>`
     : '';
-  html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+  html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
     <div class="ctc-header">${valueTerm} Calculation Breakdown</div>
     <div class="result-row"><span class="result-label">Valuation Basis</span><span class="result-value">${arvMethodLabel}</span></div>
     <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Income</span><span class="result-value">${fmt(stabilizedValuation.rentGsiAnnual)}/yr</span></div>
@@ -1350,7 +1350,7 @@ function calc() {
   </div>`;
 
 	  // Cash to Close summary
-  html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+  html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
     <div class="ctc-header">Cash to Close</div>
     <div class="result-row"><span class="result-label">Down Payment (${dpPct}%)</span><span class="result-value">${fmt(dp)}</span></div>
     <div class="result-row"><span class="result-label">Closing Costs (${closingCostPct}%)</span><span class="result-value">${fmt(closingCostAmt)}</span></div>
@@ -1376,10 +1376,10 @@ function calc() {
     const netBasis    = allInCost - creditApplied;            // your basis after the seller's help
     let mVerdict, mColor;
     if (allInPctARV <= 75)       { mVerdict = '🟢 Strong margin — meets the 70–75% BRRRR rule'; mColor = 'var(--green-light)'; }
-    else if (allInPctARV <= 85)  { mVerdict = '🟡 Thin margin — small equity cushion'; mColor = '#e09a40'; }
-    else if (allInPctARV <= 100) { mVerdict = '🟠 Minimal margin — little equity created for the risk'; mColor = '#e09a40'; }
-    else                         { mVerdict = "🔴 Underwater — all-in exceeds ARV. A seller credit won't fix an overpay; re-trade the price or walk"; mColor = '#e07070'; }
-    html += `<div style="margin-top:12px;border:1px solid ${mColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
+    else if (allInPctARV <= 85)  { mVerdict = '🟡 Thin margin — small equity cushion'; mColor = 'var(--warn)'; }
+    else if (allInPctARV <= 100) { mVerdict = '🟠 Minimal margin — little equity created for the risk'; mColor = 'var(--warn)'; }
+    else                         { mVerdict = "🔴 Underwater — all-in exceeds ARV. A seller credit won't fix an overpay; re-trade the price or walk"; mColor = 'var(--bad)'; }
+    html += `<div style="margin-top:12px;border:1px solid ${mColor};padding:12px 14px;background:var(--panel);">
       <div class="ctc-header" style="color:${mColor};">Equity Margin — All-In vs. ARV</div>
       <div class="result-row"><span class="result-label">All-In Cost (price + rehab + closing)</span><span class="result-value">${fmt(allInCost)}</span></div>
       <div class="result-row"><span class="result-label">ARV Used (${arvMethodLabel})</span><span class="result-value">${fmt(arvUsed)}</span></div>
@@ -1400,7 +1400,7 @@ function calc() {
     const deltaTxt     = delta > 0
       ? 'Your price is ' + fmt(delta) + ' ABOVE the supported max'
       : 'Your price is ' + fmt(-delta) + ' below the max — room to bid';
-    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
       <div class="ctc-header">Lender Sizing — Max Offer @ ${dscrMin.toFixed(2)}× DSCR</div>
       <div class="result-row"><span class="result-label">Max Supportable Loan</span><span class="result-value">${fmt(maxLoan)}</span></div>
       <div class="result-row"><span class="result-label">Max Purchase Price (at ${dpPct}% down)</span><span class="result-value">${fmt(maxPrice)}</span></div>
@@ -1421,7 +1421,7 @@ function calc() {
     const denomR     = a - repairRate - otherRate;
     const beRent     = denomR > 0 ? (pi + rehabPI + otherFixed + fixedExp - a * otherIncome) / denomR : 0;
     const cushion    = 100 - beOcc * 100;
-    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
       <div class="ctc-header">Break-Even (cash flow = $0)</div>
       <div class="result-row"><span class="result-label">Break-Even Occupancy</span><span class="result-value ${cls(cushion, 15, 5)}">${(beOcc * 100).toFixed(1)}%</span></div>
       <div class="result-row"><span class="result-label">Break-Even Gross Rent</span><span class="result-value">${fmt(beRent)}/mo</span></div>
@@ -1521,7 +1521,7 @@ function calc() {
       }
     }
 
-    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
       <div class="ctc-header">${holdYears}-Year Projection &amp; Total Return${isValueAdd ? ' (ramps to stabilized)' : ''}${refiWithinHold ? ' · refi in Yr ' + refiYear : ''}</div>
       <table class="data-table" style="margin:8px 0;font-size:12px;">
         <thead><tr><th>Yr</th><th>Gross Rent</th><th>NOI</th><th>Cash Flow</th><th>Loan Bal</th></tr></thead>
@@ -1547,7 +1547,7 @@ function calc() {
      numbers (refiYear, newLoan, cashOut, postCF, etc.) are computed above, before the 5-yr
      projection, so both boxes stay in sync. ── */
   if (refiActive) {
-    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:rgba(0,0,0,0.15);">
+    html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
       <div class="ctc-header">Refinance / BRRRR Exit — Year ${refiYear}</div>
       <div class="result-row key"><span class="result-label">Total Cash Invested (down payment + closing + rehab)</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
       <div class="result-row"><span class="result-label">${grew ? 'Owner NOI at Refi (Yr ' + refiYear + ', grown)' : 'Owner Stabilized NOI'}</span><span class="result-value">${fmt(noiRefi_yr)}/yr</span></div>
@@ -1591,14 +1591,14 @@ function calc() {
         bVerdict = needsMoreCash
           ? '🟡 CASH FLOW IMPROVES, BUT THE REFI DOESN\'T FULLY REPAY THE BRIDGE — still needs ' + fmt(-cashOut) + ' more cash'
           : '🟡 REFINANCE HELPS, BUT STILL THIN — verify rents before committing';
-        bColor = '#e09a40';
+        bColor = 'var(--warn)';
       } else {
         bVerdict = bigShortfall
           ? "🔴 DOESN'T PENCIL — ARV can't support a payoff, needs " + fmt(-cashOut) + ' more cash at refi'
           : "🔴 DOESN'T PENCIL EVEN REFINANCED — bridge carry too thin";
-        bColor = '#e07070';
+        bColor = 'var(--bad)';
       }
-      html += `<div style="margin-top:12px;border:1px solid ${bColor};padding:12px 14px;background:rgba(0,0,0,0.15);">
+      html += `<div style="margin-top:12px;border:1px solid ${bColor};padding:12px 14px;background:var(--panel);">
         <div class="ctc-header" style="color:${bColor};">Bridge Loan — Stabilization: Pre vs. Post Refinance</div>
         <table class="data-table" style="margin:8px 0;font-size:12px;">
           <thead><tr><th></th><th>During Bridge (${rate}% IO)</th><th>After Refinance</th></tr></thead>
@@ -2029,7 +2029,7 @@ function runLoanCalc() {
   const showBalloon = lcBalloon || lcCalcType === 'io';
   const typeLabel   = lcCalcType === 'amort' ? 'Amortization (P&I)' : 'Interest-Only';
 
-  let html = '<div style="border:1px solid var(--border);padding:16px 18px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:14px;">';
+  let html = '<div style="border:1px solid var(--border);padding:16px 18px;background:var(--panel);border-radius:8px;margin-bottom:14px;">';
   html += '<div class="ctc-header" style="margin-bottom:10px;">' + typeLabel + ' Results</div>';
 
   html += `<div class="result-row key"><span class="result-label">Monthly Payment</span><span class="result-value good">${fmtD(monthlyPayment)}/mo</span></div>`;
@@ -2064,7 +2064,7 @@ function runLoanCalc() {
   if (schedEl) {
     if (lcCalcType === 'io') {
       schedEl.innerHTML =
-        '<div style="border:1px solid var(--border);padding:14px 16px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:14px;">' +
+        '<div style="border:1px solid var(--border);padding:14px 16px;background:var(--panel);border-radius:8px;margin-bottom:14px;">' +
         '<div class="ctc-header" style="margin-bottom:8px;">Interest vs. Principal Breakdown</div>' +
         '<div class="alert red" style="margin-bottom:0;">' +
           '<div class="alert-title">💸 100% INTEREST — $0 PRINCIPAL PAYDOWN</div>' +
@@ -2114,13 +2114,13 @@ function runLoanCalc() {
           '<tr>' +
           '<td class="hl">Year ' + yr + '</td>' +
           '<td class="mu">' + fmtD(monthlyPayment) + '/mo</td>' +
-          '<td style="color:#e07070;">' + fmtN(yrInt)  + '</td>' +
-          '<td style="color:#6db36d;">' + fmtN(yrPrin) + '</td>' +
+          '<td style="color:var(--bad);">' + fmtN(yrInt)  + '</td>' +
+          '<td style="color:var(--green-light);">' + fmtN(yrPrin) + '</td>' +
           '<td>' + fmtN(bal) + '</td>' +
           '<td style="min-width:100px;">' +
             '<div style="display:flex;height:10px;border-radius:3px;overflow:hidden;">' +
-              '<div style="width:' + intPct.toFixed(1) + '%;background:#e07070;"></div>' +
-              '<div style="width:' + prinPct.toFixed(1) + '%;background:#6db36d;"></div>' +
+              '<div style="width:' + intPct.toFixed(1) + '%;background:var(--bad);"></div>' +
+              '<div style="width:' + prinPct.toFixed(1) + '%;background:var(--green-light);"></div>' +
             '</div>' +
             '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">' + intPct.toFixed(0) + '% int · ' + prinPct.toFixed(0) + '% prin</div>' +
           '</td>' +
@@ -2131,36 +2131,36 @@ function runLoanCalc() {
       if (lcBalloon && balloonBalance > 0) {
         tableRows +=
           '<tr class="key">' +
-          '<td class="hl" style="color:#e07070;">🔴 Balloon</td>' +
-          '<td colspan="3" style="color:#e07070;">Remaining balance due in full</td>' +
+          '<td class="hl" style="color:var(--bad);">🔴 Balloon</td>' +
+          '<td colspan="3" style="color:var(--bad);">Remaining balance due in full</td>' +
           '<td class="rd">' + fmtN(balloonBalance) + '</td>' +
-          '<td style="color:#e07070;">Lump sum due</td>' +
+          '<td style="color:var(--bad);">Lump sum due</td>' +
           '</tr>';
       }
 
       schedEl.innerHTML =
-        '<div style="border:1px solid var(--border);padding:14px 16px;background:rgba(0,0,0,0.15);border-radius:8px;margin-bottom:14px;">' +
+        '<div style="border:1px solid var(--border);padding:14px 16px;background:var(--panel);border-radius:8px;margin-bottom:14px;">' +
         '<div class="ctc-header" style="margin-bottom:10px;">Interest vs. Principal Breakdown</div>' +
 
         /* Month 1 bar card + crossover card */
         '<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">' +
 
-          '<div style="flex:1;min-width:180px;background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;">' +
+          '<div style="flex:1;min-width:180px;background:var(--panel-strong);border-radius:6px;padding:10px 12px;">' +
             '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Month 1 — ' + fmtD(monthlyPayment) + '/mo</div>' +
             '<div style="display:flex;height:22px;border-radius:4px;overflow:hidden;margin-bottom:6px;">' +
-              '<div style="width:' + m1IntPct.toFixed(1) + '%;background:#e07070;display:flex;align-items:center;padding-left:6px;font-size:11px;color:#fff;font-weight:700;">' + m1IntPct.toFixed(0) + '%</div>' +
-              '<div style="width:' + m1PrinPct.toFixed(1) + '%;background:#6db36d;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;color:#fff;font-weight:700;">' + m1PrinPct.toFixed(0) + '%</div>' +
+              '<div style="width:' + m1IntPct.toFixed(1) + '%;background:var(--bad);display:flex;align-items:center;padding-left:6px;font-size:11px;color:#fff;font-weight:700;">' + m1IntPct.toFixed(0) + '%</div>' +
+              '<div style="width:' + m1PrinPct.toFixed(1) + '%;background:var(--green-light);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;color:#fff;font-weight:700;">' + m1PrinPct.toFixed(0) + '%</div>' +
             '</div>' +
             '<div style="font-size:12px;">' +
-              '<span style="color:#e07070;">■</span> Interest: ' + fmtD(m1Int) +
-              ' &nbsp;·&nbsp; <span style="color:#6db36d;">■</span> Principal: ' + fmtD(m1Prin) +
+              '<span style="color:var(--bad);">■</span> Interest: ' + fmtD(m1Int) +
+              ' &nbsp;·&nbsp; <span style="color:var(--green-light);">■</span> Principal: ' + fmtD(m1Prin) +
             '</div>' +
           '</div>' +
 
           (crossover
-            ? '<div style="flex:1;min-width:180px;background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;">' +
+            ? '<div style="flex:1;min-width:180px;background:var(--panel-strong);border-radius:6px;padding:10px 12px;">' +
                 '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;">Crossover Point</div>' +
-                '<div style="font-size:18px;font-weight:700;color:var(--gold);">Month ' + crossover + '</div>' +
+                '<div style="font-size:18px;font-weight:700;color:var(--accent-strong);">Month ' + crossover + '</div>' +
                 '<div style="font-size:12px;color:var(--text-muted);">Year ' + (crossover / 12).toFixed(1) + ' — principal payment first exceeds interest</div>' +
               '</div>'
             : '') +
@@ -2172,8 +2172,8 @@ function runLoanCalc() {
           '<thead><tr>' +
             '<th>Year</th>' +
             '<th>Monthly</th>' +
-            '<th style="color:#e07070;">Interest Paid</th>' +
-            '<th style="color:#6db36d;">Principal Paid</th>' +
+            '<th style="color:var(--bad);">Interest Paid</th>' +
+            '<th style="color:var(--green-light);">Principal Paid</th>' +
             '<th>Balance</th>' +
             '<th>Split</th>' +
           '</tr></thead>' +
