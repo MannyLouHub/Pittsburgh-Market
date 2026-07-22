@@ -197,7 +197,7 @@
       const mills0  = cfg0.mills != null ? cfg0.mills : '';
       const ext = document.createElement('div');
       ext.innerHTML =
-        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+        '<div id="tax-section" style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
           '<div class="ctc-header">Property Taxes</div>' +
           '<div class="input-row"><label>Acquisition Tax Source</label>' +
             '<button type="button" class="toggle-btn" id="taxmode-toggle" style="width:100%;text-align:center;" onclick="toggleTaxMode()">Estimated post-sale reassessment (CLR ' + clrPct0 + '%)</button>' +
@@ -209,8 +209,8 @@
             '<input type="number" id="millrate" value="' + mills0 + '" oninput="calc()">' +
             '<div class="hint">County + municipal + school district mills, added together. Prefilled for this market; edit if your rates changed (1 mill = $1 per $1,000 of assessed value)</div></div>' +
         '</div>' +
-        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
-          '<div class="ctc-header">Operating Detail</div>' +
+        '<div id="opex-section" style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Operating Expenses</div>' +
           '<div class="input-row"><label>CapEx Reserve</label>' +
             '<div class="input-with-toggle">' +
               '<input type="number" id="capexreserve" value="5" oninput="calc()">' +
@@ -292,6 +292,42 @@
           '<div class="hint">Styled .xlsx with every active input &amp; result — opens in Excel, Google Sheets, or Numbers</div>' +
         '</div>';
       calcInputs.appendChild(ext);
+
+      /* Regroup operating-expense inputs + add input-column section headers.
+         The loose static rows (PM toggle/fee, R&M, insurance, other) and the injected
+         reserve/utilities rows are consolidated into one "Operating Expenses" section, and
+         that section + Property Taxes are lifted above the static Cash to Close block, so the
+         input column reads Acquisition → Income → Operating Expenses → Taxes → Cash to Close.
+         Purely a DOM reorder — no input ids change, so no math changes. */
+      (function regroupInputs() {
+        const opex = document.getElementById('opex-section');
+        const tax  = document.getElementById('tax-section');
+        if (!opex) return;
+        ['pm-toggle', 'pmfee', 'capex', 'capexreserve', 'ins', 'utilities', 'other'].forEach(function (id) {
+          const el  = document.getElementById(id);
+          const row = el && el.closest('.input-row');
+          if (row) opex.appendChild(row);
+        });
+        const rehabEl     = document.getElementById('rehab');
+        const cashToClose = rehabEl && rehabEl.closest('.input-row') && rehabEl.closest('.input-row').parentElement;
+        if (cashToClose && cashToClose.parentElement === calcInputs) {
+          if (tax) calcInputs.insertBefore(tax, cashToClose);
+          calcInputs.insertBefore(opex, tax || cashToClose);
+        }
+        function inputHeader(text, ref, divider) {
+          if (!ref) return;
+          const h = document.createElement('div');
+          h.className = 'ctc-header';
+          h.style.cssText = divider
+            ? 'border-top:1px solid var(--border);margin-top:10px;padding-top:12px;'
+            : 'margin-bottom:6px;';
+          h.textContent = text;
+          calcInputs.insertBefore(h, ref);
+        }
+        inputHeader('Acquisition & Financing', calcInputs.firstChild, false);
+        const rentEl = document.getElementById('rent');
+        inputHeader('Income & Vacancy', rentEl && rentEl.closest('.input-row'), true);
+      })();
 
       const rrRows = document.getElementById('rr-rows');
       if (rrRows) { rrRows.innerHTML = rrRowHTML(startUnits, Math.round(perUnitRent())); rrSum(); }
@@ -553,6 +589,7 @@ let rehabFinanced = false;   /* finance rehab with a separate loan instead of ca
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
 let willRefi      = false;   /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
 let taxMode       = 'clr';   /* acquisition tax only: 'clr' = post-sale reassessment estimate · 'assessed' = current county assessed value */
+let arvPeriodMode = 'yr';    /* ARV Calculation Breakdown display period: 'yr' | 'mo' */
 
 /* Loan Calculator state */
 let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
@@ -643,8 +680,6 @@ function applyCommercialMode(isCommercial) {
     // If a now-invalid residential type is selected, switch to DSCR/commercial
     if (isCommercial && (lt.value === 'conv' || lt.value === 'fha')) {
       lt.value = 'dscr';
-      const rateEl = document.getElementById('rate');
-      if (rateEl) rateEl.value = 8.50;
       const dpEl = document.getElementById('dp');
       if (dpEl && (parseFloat(dpEl.value) || 0) < 25) dpEl.value = 25;
     }
@@ -715,9 +750,9 @@ function irr(cashflows) {
 
 /* ─── Rent roll / unit-mix builder ────────────────────────── */
 function rrRowHTML(count, rent, type) {
-  type = type || '2/1';
-  const opts = ['Studio', '1/1', '2/1', '2/2', '3/1', '3/2', '4/2']
-    .map(function (t) { return '<option' + (t === type ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+  type = type || '';   // blank by default — user picks a unit type, nothing preselected
+  const opts = ['', 'Studio', '1/1', '2/1', '2/2', '3/1', '3/2', '4/2']
+    .map(function (t) { return '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + (t || '—') + '</option>'; }).join('');
   return '<div class="rr-row" style="display:flex;gap:5px;align-items:center;margin-bottom:5px;">' +
     '<select class="rr-type" onchange="rrSum()" style="width:62px;" title="unit type (bed/bath)">' + opts + '</select>' +
     '<input type="number" class="rr-count" min="0" step="1" value="' + count + '" oninput="rrSum()" style="width:46px;" title="# of units">' +
@@ -828,6 +863,12 @@ function toggleTaxMode() {
   calc();
 }
 
+/* ARV Calculation Breakdown — flip the whole block between yearly and monthly figures */
+function toggleArvPeriod() {
+  arvPeriodMode = arvPeriodMode === 'yr' ? 'mo' : 'yr';
+  calc();
+}
+
 /* Acquisition loan amortization (yrs) — what the refi defaults to until changed */
 function acqAmortYears() {
   const lt = (document.getElementById('loan_type') || {}).value;
@@ -931,20 +972,19 @@ function togglePM() {
 /* ─── Loan type change handler ────────────────────────────── */
 function updateLoanType() {
   const lt   = document.getElementById('loan_type').value;
-  const rate = document.getElementById('rate');
   const dp   = document.getElementById('dp');
-  // Suggest rate defaults per loan type (user can still override)
+  // Interest rate stays where the user set it (default 7.5%) — it no longer moves with loan type.
+  // Loan type still adjusts the typical down payment and toggles seller/bridge behavior.
   const commercial = getUnits() >= 5;
-  if      (lt === 'conv')   { rate.value = 6.875; }
-  else if (lt === 'fha')    { rate.value = 6.125; dp.value = 3.5; }
-  else if (lt === 'dscr')   { rate.value = 8.50;  dp.value = commercial ? 25 : 20; }
-  else if (lt === 'cash')   { rate.value = 0;     dp.value = 100; }
-  else if (lt === 'seller') { rate.value = 7.5;   dp.value = 10;  }
+  if      (lt === 'fha')    { dp.value = 3.5; }
+  else if (lt === 'dscr')   { dp.value = commercial ? 25 : 20; }
+  else if (lt === 'cash')   { dp.value = 100; }
+  else if (lt === 'seller') { dp.value = 10;  }
   else if (lt === 'bridge') {
-    rate.value = 12; dp.value = 15;
+    dp.value = 15;
     // A bridge/hard-money acquisition must exit via refinance — turn the BRRRR exit on
     setWillRefi(true);
-    // Suggest the same 12% IO rate for a separately-financed rehab loan, if used
+    // Suggest a 12% IO rate for a separately-financed rehab loan, if used
     const rehabRateEl = document.getElementById('rehabfin-rate');
     if (rehabRateEl) rehabRateEl.value = 12;
   }
@@ -984,7 +1024,7 @@ function calc() {
   const dscrMin          = isCommercial ? 1.25 : 1.20;
   const pp               = parseFloat(document.getElementById('pp').value) || 0;
   const dpPct            = parseFloat(document.getElementById('dp').value) || 20;
-  const rate             = parseFloat(document.getElementById('rate').value) || 7.75;
+  const rate             = parseFloat(document.getElementById('rate').value) || 7.5;
   const rentGross        = parseFloat(document.getElementById('rent').value) || 0;
   const otherIncome      = parseFloat(document.getElementById('other_income').value) || 0;
   const currentVacancyInput = parseFloat(document.getElementById('vac').value);
@@ -1260,7 +1300,7 @@ function calc() {
     {l:'Gross Rent Multiplier',                       v:grm.toFixed(1) + 'x (target ≤10)',                        c:grm <= 10 ? 'good' : grm <= 12 ? 'warn' : 'bad', key:false}
   ];
 
-  let html = rows.map(r =>
+  let html = '<div class="ctc-header">Current Status</div>' + rows.map(r =>
     `<div class="result-row${r.key ? ' key' : ''}"><span class="result-label">${r.l}</span><span class="result-value ${r.c}">${r.v}</span></div>`
   ).join('');
 
@@ -1302,9 +1342,11 @@ function calc() {
       <div class="result-row"><span class="result-label">Stabilized EGI</span><span class="result-value">${fmt(stabEGI)}/mo · ${fmt(stabEGI * 12)}/yr</span></div>
       <div class="result-row"><span class="result-label">Stabilized GRM</span><span class="result-value ${grmStab <= 10 ? 'good' : grmStab <= 12 ? 'warn' : 'bad'}">${grmStab.toFixed(1)}x (target ≤10)</span></div>
       <div class="result-row"><span class="result-label">Stabilized Property Tax (${stabilizedValuation.taxLabel})</span><span class="result-value">${fmt(stabTaxMonthly)}/mo · ${fmt(stabTaxAnnual)}/yr</span></div>
+      <div class="result-row"><span class="result-label">Stabilized Insurance</span><span class="result-value">${fmt(insMonthly)}/mo · ${fmt(insAnnual)}/yr</span></div>
       <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${fmt(stabTotalExp)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Stabilized Operating Expense %</span><span class="result-value">${fmtPct(stabOperatingExpPct)} of EGI</span></div>
       <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI)}/mo · ${fmt(stabNOI_yr)}/yr</span></div>
+      ${(pi + pmiMonthly + rehabPI) > 0 ? `<div class="result-row"><span class="result-label">Stabilized Mortgage P&amp;I${pmiMonthly > 0 ? ' + PMI/MIP' : ''}${rehabPI > 0 ? ' + Rehab' : ''}</span><span class="result-value bad">-${fmt(pi + pmiMonthly + rehabPI)}/mo</span></div>` : ''}
       <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${(stabCF < 0 ? '-' : '') + fmt(stabCF)}/mo</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cap Rate</span><span class="result-value ${cls(stabCapRate, 8, 6.5)}">${fmtPct(stabCapRate)}</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cash-on-Cash</span><span class="result-value ${cls(stabCoC, 7, 4)}">${fmtPct(stabCoC)}</span></div>
@@ -1324,23 +1366,26 @@ function calc() {
   const taxImpactLine = valuationTaxMethod === 'reassessed'
     ? `<div class="result-row"><span class="result-label">Price-linked tax impact on income ${valueTerm}</span><span class="result-value warn">${stabilizedValuation.priceLinkedTaxArvImpact < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxArvImpact)} total · ${stabilizedValuation.priceLinkedTaxImpactPer25k < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxImpactPer25k)} per $25K price change</span></div>`
     : '';
+  const arvDiv = arvPeriodMode === 'mo' ? 12 : 1;
+  const arvSuf = arvPeriodMode === 'mo' ? '/mo' : '/yr';
+  const fmtArv = (annual) => fmt(annual / arvDiv) + arvSuf;
   html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
-    <div class="ctc-header">${valueTerm} Calculation Breakdown</div>
+    <div class="ctc-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>${valueTerm} Calculation Breakdown</span><button type="button" class="toggle-btn" style="padding:2px 9px;font-size:10px;text-transform:none;letter-spacing:0;" onclick="toggleArvPeriod()">${arvPeriodMode === 'mo' ? 'Show Yearly' : 'Show Monthly'}</button></div>
     <div class="result-row"><span class="result-label">Valuation Basis</span><span class="result-value">${arvMethodLabel}</span></div>
-    <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Income</span><span class="result-value">${fmt(stabilizedValuation.rentGsiAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Vacancy &amp; Credit Loss (${stabVacPct}%)</span><span class="result-value bad">-${fmt(stabilizedValuation.vacancyDeductionAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">+${fmt(stabilizedValuation.otherIncomeAnnual)}/yr</span></div>
-    <div class="result-row key"><span class="result-label">Effective Gross Income</span><span class="result-value">${fmt(stabilizedValuation.effectiveGrossIncomeAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Property Taxes (${stabilizedValuation.taxLabel})</span><span class="result-value">-${fmt(stabilizedValuation.expenses.propertyTaxAnnual)}/yr</span></div>
+    <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Income</span><span class="result-value">${fmtArv(stabilizedValuation.rentGsiAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Vacancy &amp; Credit Loss (${stabVacPct}%)</span><span class="result-value bad">-${fmtArv(stabilizedValuation.vacancyDeductionAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">+${fmtArv(stabilizedValuation.otherIncomeAnnual)}</span></div>
+    <div class="result-row key"><span class="result-label">Effective Gross Income</span><span class="result-value">${fmtArv(stabilizedValuation.effectiveGrossIncomeAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Property Taxes (${stabilizedValuation.taxLabel})</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.propertyTaxAnnual)}</span></div>
     ${taxMode === 'assessed' && (!isFinite(assessedIn) || assessedIn <= 0) ? `<div class="result-row"><span class="result-label">⚠ Current assessed value missing</span><span class="result-value warn">Using the CLR tax estimate until an assessed value is entered above</span></div>` : ''}
-    <div class="result-row"><span class="result-label">Insurance</span><span class="result-value">-${fmt(stabilizedValuation.expenses.insuranceAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Management (${configuredPmPct}% of EGI)</span><span class="result-value">-${fmt(stabilizedValuation.expenses.managementAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Repairs &amp; Maintenance (${capexPct}% of rent)</span><span class="result-value">-${fmt(stabilizedValuation.expenses.repairsAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Other Operating Expenses (${otherMode === 'pct' ? otherInput + '% of rent' : fmt(otherMonthly) + '/mo'})</span><span class="result-value">-${fmt(stabilizedValuation.expenses.otherExpenseAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Replacement Reserves (${capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr'})</span><span class="result-value">-${fmt(stabilizedValuation.expenses.capexReserveAnnual)}/yr</span></div>
-    <div class="result-row"><span class="result-label">Owner-Paid Utilities</span><span class="result-value">-${fmt(stabilizedValuation.expenses.utilitiesAnnual)}/yr</span></div>
+    <div class="result-row"><span class="result-label">Insurance</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.insuranceAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Management (${configuredPmPct}% of EGI)</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.managementAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Repairs &amp; Maintenance (${capexPct}% of rent)</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.repairsAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Other Operating Expenses (${otherMode === 'pct' ? otherInput + '% of rent' : fmt(otherMonthly) + '/mo'})</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.otherExpenseAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Replacement Reserves (${capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr'})</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.capexReserveAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Owner-Paid Utilities</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.utilitiesAnnual)}</span></div>
     <div class="result-row key"><span class="result-label">Valuation Operating Expense %</span><span class="result-value">${fmtPct(stabilizedValuation.operatingExpensePct)} of EGI</span></div>
-    <div class="result-row key"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabilizedValuation.stabilizedNoiAnnual)}/yr</span></div>
+    <div class="result-row key"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmtArv(stabilizedValuation.stabilizedNoiAnnual)}</span></div>
     <div class="result-row"><span class="result-label">Exit Cap Rate</span><span class="result-value">${(arvCapRate * 100).toFixed(2)}%</span></div>
     <div class="result-row"><span class="result-label">Automatic Income Value</span><span class="result-value">${fmt(incomeARV)}</span></div>
     ${manualARV > 0 ? `<div class="result-row"><span class="result-label">Manual ${valueTerm} Override</span><span class="result-value">${fmt(manualARV)}</span></div>` : ''}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="../shared/playbook.css?v=light-mode-contrast-20260714">
+<link rel="stylesheet" href="../shared/playbook.css?v=calc-refinements-20260721">
 <script>(function(){try{document.documentElement.setAttribute("data-theme",localStorage.getItem("pmh-theme")||"dark");}catch(e){}})();</script>
 <title>Brighton Heights PA — Investment Playbook v2 · Luminous Steel City Holdings</title>
 </head>
@@ -299,7 +299,7 @@
       <div class="input-row"><label>Property Type</label><select id="ptype" onchange="setRentDefault()"><option value="duplex">Duplex (2 units)</option><option value="triplex">Triplex (3 units)</option><option value="quad">Quad (4 units)</option></select></div>
       <div class="input-row"><label>Purchase Price ($)</label><input type="number" id="pp" value="180000" oninput="calc()"></div>
       <div class="input-row"><label>Down Payment (%)</label><input type="number" id="dp" value="20" oninput="calc()"></div>
-      <div class="input-row"><label>Interest Rate (%)</label><input type="number" id="rate" value="7.75" step="0.25" oninput="calc()"></div>
+      <div class="input-row"><label>Interest Rate (%)</label><input type="number" id="rate" value="7.5" step="0.25" oninput="calc()"></div>
       <div class="input-row"><label>Monthly Gross Rent ($)</label><input type="number" id="rent" value="2400" oninput="calc()"><div class="hint">Preset: Duplex $2,400 · Triplex $3,225 · Quad $4,800</div></div>
       <div class="input-row"><label>Other Monthly Income ($)</label><input type="number" id="other_income" value="0" oninput="calc()"></div>
       <div class="input-row"><label>Vacancy Rate (%)</label><input type="number" id="vac" value="8" oninput="calc()"></div>
@@ -509,7 +509,7 @@ window.PLAYBOOK_CONFIG = {
 };
 </script>
 <script src="../shared/arv-model.js?v=arv-audit-20260712"></script>
-<script src="../shared/playbook.js?v=light-mode-contrast-20260714"></script>
+<script src="../shared/playbook.js?v=calc-refinements-20260721"></script>
 <script>
 buildChecklist('pre-offer', [
   'Pull Allegheny County parcel record, assessed value, and current tax bills',
