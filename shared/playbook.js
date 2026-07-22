@@ -625,7 +625,6 @@ let dpFinIO       = true;    /* down-payment loan interest-only (gap/hard-money)
 let refiTarget    = 'both';  /* at refinance: 'both' = new 1st mortgage retires 1st+2nd · 'second' = keep the 1st, refinance only the 2nd-position loan out */
 let willRefi      = false;   /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
 let taxMode       = 'clr';   /* acquisition tax only: 'clr' = post-sale reassessment estimate · 'assessed' = current county assessed value */
-let arvPeriodMode = 'yr';    /* ARV Calculation Breakdown display period: 'yr' | 'mo' */
 
 /* Loan Calculator state */
 let lcTermMode    = 'yr';    /* 'yr' | 'mo' */
@@ -896,12 +895,6 @@ function toggleTaxMode() {
     const pp = parseFloat((document.getElementById('pp') || {}).value) || 0;
     if (av && !av.value && pp > 0 && cfg.clr) av.value = Math.round(pp * cfg.clr);
   }
-  calc();
-}
-
-/* ARV Calculation Breakdown — flip the whole block between yearly and monthly figures */
-function toggleArvPeriod() {
-  arvPeriodMode = arvPeriodMode === 'yr' ? 'mo' : 'yr';
   calc();
 }
 
@@ -1326,6 +1319,8 @@ function calc() {
   function fmt(n)           { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); }
   function fmtPct(n)        { return n.toFixed(2) + '%'; }
   function cls(v, good, warn) { return v >= good ? 'good' : v >= warn ? 'warn' : 'bad'; }
+  // Dual monthly · yearly display for any recurring flow. `sign` ('', '-', '+') is applied to both figures.
+  function moYr(monthly, sign) { sign = sign || ''; return sign + fmt(monthly) + '/mo · ' + sign + fmt(monthly * 12) + '/yr'; }
 
   const insAnnual = insMode === 'yr' ? insRaw : insRaw * 12;
 
@@ -1335,11 +1330,11 @@ function calc() {
     ...((isCommercial && dpPct < 25) ? [{l:'⚠ Down Payment Below Commercial Min', v:'25% typical for 5+ units', c:'bad', key:true}] : []),
     {l:'Loan Amount',                                 v:fmt(loan),                                                 c:'',                      key:false},
     ...(isCommercial ? [{l:'Financing Basis', v:'Commercial · ' + commAmortYrs + '-yr amort · DSCR ≥1.25×', c:'', key:false}] : []),
-    {l: isBridge ? 'Monthly Interest (Bridge IO @ ' + rate + '%)' : 'Monthly P&I', v:fmt(pi) + '/mo', c:'', key:false},
+    {l: isBridge ? 'Interest (Bridge IO @ ' + rate + '%)' : 'Mortgage P&I', v:moYr(pi), c:'', key:false},
     ...(isBridge ? [{l:'⚠ Interest-Only — No Principal Paydown', v:fmt(loan) + ' balance carries in full to your refi/sale', c:'bad', key:false}] : []),
-    ...(rehabPI > 0 ? [{l:'Rehab Loan ' + (rehabIO ? 'Interest' : 'P&I') + ' (' + fmt(rehabLoan) + ' @ ' + (rehabRateMo * 1200).toFixed(1) + '%' + (rehabIO ? ' IO' : '') + ')', v:fmt(rehabPI) + '/mo', c:'bad', key:false}] : []),
+    ...(rehabPI > 0 ? [{l:'Rehab Loan ' + (rehabIO ? 'Interest' : 'P&I') + ' (' + fmt(rehabLoan) + ' @ ' + (rehabRateMo * 1200).toFixed(1) + '%' + (rehabIO ? ' IO' : '') + ')', v:moYr(rehabPI), c:'bad', key:false}] : []),
     ...(dpLoanAmt > 0 ? [{l:'2nd-Position Loan (' + fmt(dpLoanAmt) + ' @ ' + (dpFinRateMo * 1200).toFixed(1) + '%' + (dpFinIO ? ' IO' : '') + ' — covers ' + (dpFinPct * 100).toFixed(0) + '% of down pmt)', v:fmt(dpLoanAmt), c:'', key:false}] : []),
-    ...(dpLoanPayment > 0 ? [{l:'2nd-Position ' + (dpFinIO ? 'Interest' : 'P&I'), v:fmt(dpLoanPayment) + '/mo', c:'bad', key:false}] : []),
+    ...(dpLoanPayment > 0 ? [{l:'2nd-Position ' + (dpFinIO ? 'Interest' : 'P&I'), v:moYr(dpLoanPayment), c:'bad', key:false}] : []),
     {l: taxMode === 'assessed' ? 'Property Tax (assessed value)' : 'Tax Estimate (CLR-modeled)',
                                                       v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
     {l:'Assessed Value Used' + (taxMode === 'assessed' ? '' : ' (est.)'),
@@ -1354,23 +1349,22 @@ function calc() {
       v: fmt(balloonBalance),
       c: 'bad', key: true
     }] : []),
-    ...(otherIncome > 0 ? [{l:'Other Monthly Income', v:'+' + fmt(otherIncome) + '/mo',                            c:'good',                  key:false}] : []),
+    ...(otherIncome > 0 ? [{l:'Other Income', v:moYr(otherIncome, '+'),                                             c:'good',                  key:false}] : []),
     {l:'Gross Scheduled Income (GSI)',                 v:fmt(grossIncome) + '/mo · ' + fmt(gsi_yr) + '/yr',        c:'',                      key:false},
     {l:'Insurance',                                   v:fmt(insMonthly) + '/mo · ' + fmt(insAnnual) + '/yr',       c:'',                      key:false},
     {l: isCash ? 'Total Fixed Monthly (Tax + Insurance)'
         : (isBridge ? 'Total Monthly Payment — Interest + Tax + Ins.' : 'Total Monthly Payment — PITI') + (pmiMonthly > 0 ? ' + PMI/MIP' : '') + (rehabPI > 0 ? ' + Rehab' : ''),
-     v: fmt(pi + rehabPI + monthlyTax + insMonthly + pmiMonthly) + '/mo',                                          c:'',                      key:true},
-    {l:'Repairs & Maint. (' + capexPct + '%)',        v:fmt(capexMonthly) + '/mo',                                 c:'',                      key:false},
-    {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:fmt(otherMonthly) + '/mo', c:'', key:false},
-    ...(capexReserveMonthly > 0 ? [{l:'CapEx Reserve (' + (capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr') + ')', v:fmt(capexReserveMonthly) + '/mo', c:'', key:false}] : []),
-    ...(utilitiesMonthly > 0 ? [{l:'Owner-Paid Utilities', v:fmt(utilitiesMonthly) + '/mo', c:'', key:false}] : []),
-    {l:pmManaged ? 'PM Fee (' + pmPct + '% of EGI)' : 'PM Fee (Self-Managed)', v:fmt(pmFee) + '/mo',  c:pmManaged ? 'bad' : 'good', key:false},
-    {l:'Total Monthly Expenses',                      v:fmt(totalExp) + '/mo',                                     c:'',                      key:false},
+     v: moYr(pi + rehabPI + monthlyTax + insMonthly + pmiMonthly),                                                 c:'',                      key:true},
+    {l:'Repairs & Maint. (' + capexPct + '%)',        v:moYr(capexMonthly),                                        c:'',                      key:false},
+    {l:'Other Expenses (' + (otherMode === 'pct' ? otherInput + '%' : fmt(otherMonthly) + '/mo') + ')', v:moYr(otherMonthly), c:'', key:false},
+    ...(capexReserveMonthly > 0 ? [{l:'CapEx Reserve (' + (capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr') + ')', v:moYr(capexReserveMonthly), c:'', key:false}] : []),
+    ...(utilitiesMonthly > 0 ? [{l:'Owner-Paid Utilities', v:moYr(utilitiesMonthly), c:'', key:false}] : []),
+    {l:pmManaged ? 'PM Fee (' + pmPct + '% of EGI)' : 'PM Fee (Self-Managed)', v:moYr(pmFee),  c:pmManaged ? 'bad' : 'good', key:false},
+    {l:'Total Operating Expenses',                    v:moYr(totalExp),                                            c:'',                      key:false},
     {l:'Operating Expense %',                         v:fmtPct(operatingExpPct) + ' of EGI',                       c:'',                      key:true},
     ...((operatingExpPct > 0 && operatingExpPct < 35) ? [{l:'⚠ OpEx Ratio Low', v:'<35% of EGI — likely under-budgeted', c:'bad', key:true}] : []),
-    {l:'NOI (before debt service)',                   v:(noi < 0 ? '-' : '') + fmt(noi) + '/mo',                  c:cls(noi, 0, -1),         key:false},
-    {l:'Monthly Cash Flow',                           v:(cf < 0 ? '-' : '') + fmt(cf) + '/mo',                    c:cls(cf, 150 * units, 0), key:true},
-    {l:'Annual Cash Flow',                            v:(cf * 12 < 0 ? '-' : '') + fmt(cf * 12) + '/yr',          c:cls(cf * 12, 1800 * units, 0), key:false},
+    {l:'NOI (before debt service)',                   v:moYr(noi, noi < 0 ? '-' : ''),                            c:cls(noi, 0, -1),         key:false},
+    {l:'Cash Flow',                                   v:moYr(cf, cf < 0 ? '-' : ''),                              c:cls(cf, 150 * units, 0), key:true},
     {l:'Cap Rate (' + (pmManaged ? 'PM-adjusted' : 'Self-managed') + ')', v:fmtPct(capRate),           c:cls(capRate, 8, 6.5),    key:true},
     {l:'Cash-on-Cash Return',                         v:fmtPct(coc),                                               c:cls(coc, 7, 4),          key:true},
     {l:'DSCR' + (isCommercial ? ' (commercial ≥1.25×)' : ''), v:dscr.toFixed(2) + 'x',                            c:cls(dscr, dscrMin, isCommercial ? 1.05 : 1.0), key:true},
@@ -1415,17 +1409,17 @@ function calc() {
     html += `<div style="margin-top:12px;border:1px solid ${sColor};padding:12px 14px;background:var(--panel);">
       <div class="ctc-header" style="color:${sColor};">Stabilized Deal — at Market Rents (${rentLift >= 0 ? '+' : ''}${rentLift.toFixed(0)}% vs. in-place)</div>
       <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Rent</span><span class="result-value">${fmt(rentStab)}/mo · ${fmt(rentStab * 12)}/yr</span></div>
-      <div class="result-row"><span class="result-label">Stabilized Vacancy (${stabVacPct}%)</span><span class="result-value bad">-${fmt(stabVacancy)}/mo</span></div>
-      ${otherIncome > 0 ? `<div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">+${fmt(otherIncome)}/mo</span></div>` : ''}
+      <div class="result-row"><span class="result-label">Stabilized Vacancy (${stabVacPct}%)</span><span class="result-value bad">${moYr(stabVacancy, '-')}</span></div>
+      ${otherIncome > 0 ? `<div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">${moYr(otherIncome, '+')}</span></div>` : ''}
       <div class="result-row"><span class="result-label">Stabilized EGI</span><span class="result-value">${fmt(stabEGI)}/mo · ${fmt(stabEGI * 12)}/yr</span></div>
       <div class="result-row"><span class="result-label">Stabilized GRM</span><span class="result-value ${grmStab <= 10 ? 'good' : grmStab <= 12 ? 'warn' : 'bad'}">${grmStab.toFixed(1)}x (target ≤10)</span></div>
       <div class="result-row"><span class="result-label">Stabilized Property Tax (${stabilizedValuation.taxLabel})</span><span class="result-value">${fmt(stabTaxMonthly)}/mo · ${fmt(stabTaxAnnual)}/yr</span></div>
       <div class="result-row"><span class="result-label">Stabilized Insurance</span><span class="result-value">${fmt(insMonthly)}/mo · ${fmt(insAnnual)}/yr</span></div>
-      <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${fmt(stabTotalExp)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${moYr(stabTotalExp)}</span></div>
       <div class="result-row key"><span class="result-label">Stabilized Operating Expense %</span><span class="result-value">${fmtPct(stabOperatingExpPct)} of EGI</span></div>
       <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI)}/mo · ${fmt(stabNOI_yr)}/yr</span></div>
-      ${(pi + pmiMonthly + rehabPI + dpLoanPayment) > 0 ? `<div class="result-row"><span class="result-label">Stabilized Mortgage P&amp;I${pmiMonthly > 0 ? ' + PMI/MIP' : ''}${rehabPI > 0 ? ' + Rehab' : ''}${dpLoanPayment > 0 ? ' + 2nd-Pos.' : ''}</span><span class="result-value bad">-${fmt(pi + pmiMonthly + rehabPI + dpLoanPayment)}/mo</span></div>` : ''}
-      <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${(stabCF < 0 ? '-' : '') + fmt(stabCF)}/mo</span></div>
+      ${(pi + pmiMonthly + rehabPI + dpLoanPayment) > 0 ? `<div class="result-row"><span class="result-label">Stabilized Mortgage P&amp;I${pmiMonthly > 0 ? ' + PMI/MIP' : ''}${rehabPI > 0 ? ' + Rehab' : ''}${dpLoanPayment > 0 ? ' + 2nd-Pos.' : ''}</span><span class="result-value bad">${moYr(pi + pmiMonthly + rehabPI + dpLoanPayment, '-')}</span></div>` : ''}
+      <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${moYr(stabCF, stabCF < 0 ? '-' : '')}</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cap Rate</span><span class="result-value ${cls(stabCapRate, 8, 6.5)}">${fmtPct(stabCapRate)}</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cash-on-Cash</span><span class="result-value ${cls(stabCoC, 7, 4)}">${fmtPct(stabCoC)}</span></div>
       <div class="result-row"><span class="result-label">Stabilized DSCR${isCommercial ? ' (≥1.25×)' : ''}</span><span class="result-value ${cls(stabDSCR, dscrMin, 1.0)}">${stabDSCR.toFixed(2)}x</span></div>
@@ -1444,24 +1438,22 @@ function calc() {
   const taxImpactLine = valuationTaxMethod === 'reassessed'
     ? `<div class="result-row"><span class="result-label">Price-linked tax impact on income ${valueTerm}</span><span class="result-value warn">${stabilizedValuation.priceLinkedTaxArvImpact < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxArvImpact)} total · ${stabilizedValuation.priceLinkedTaxImpactPer25k < 0 ? '-' : ''}${fmt(stabilizedValuation.priceLinkedTaxImpactPer25k)} per $25K price change</span></div>`
     : '';
-  const arvDiv = arvPeriodMode === 'mo' ? 12 : 1;
-  const arvSuf = arvPeriodMode === 'mo' ? '/mo' : '/yr';
-  const fmtArv = (annual) => fmt(annual / arvDiv) + arvSuf;
+  const fmtArv = (annual, sign) => moYr(annual / 12, sign);
   html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
-    <div class="ctc-header" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>${valueTerm} Calculation Breakdown</span><button type="button" class="toggle-btn" style="padding:2px 9px;font-size:10px;text-transform:none;letter-spacing:0;" onclick="toggleArvPeriod()">${arvPeriodMode === 'mo' ? 'Show Yearly' : 'Show Monthly'}</button></div>
+    <div class="ctc-header">${valueTerm} Calculation Breakdown</div>
     <div class="result-row"><span class="result-label">Valuation Basis</span><span class="result-value">${arvMethodLabel}</span></div>
     <div class="result-row"><span class="result-label">Stabilized Gross Scheduled Income</span><span class="result-value">${fmtArv(stabilizedValuation.rentGsiAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Vacancy &amp; Credit Loss (${stabVacPct}%)</span><span class="result-value bad">-${fmtArv(stabilizedValuation.vacancyDeductionAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">+${fmtArv(stabilizedValuation.otherIncomeAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Vacancy &amp; Credit Loss (${stabVacPct}%)</span><span class="result-value bad">${fmtArv(stabilizedValuation.vacancyDeductionAnnual, '-')}</span></div>
+    <div class="result-row"><span class="result-label">Other Recurring Income</span><span class="result-value good">${fmtArv(stabilizedValuation.otherIncomeAnnual, '+')}</span></div>
     <div class="result-row key"><span class="result-label">Effective Gross Income</span><span class="result-value">${fmtArv(stabilizedValuation.effectiveGrossIncomeAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Property Taxes (${stabilizedValuation.taxLabel})</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.propertyTaxAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Property Taxes (${stabilizedValuation.taxLabel})</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.propertyTaxAnnual, '-')}</span></div>
     ${taxMode === 'assessed' && (!isFinite(assessedIn) || assessedIn <= 0) ? `<div class="result-row"><span class="result-label">⚠ Current assessed value missing</span><span class="result-value warn">Using the CLR tax estimate until an assessed value is entered above</span></div>` : ''}
-    <div class="result-row"><span class="result-label">Insurance</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.insuranceAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Management (${configuredPmPct}% of EGI)</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.managementAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Repairs &amp; Maintenance (${capexPct}% of rent)</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.repairsAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Other Operating Expenses (${otherMode === 'pct' ? otherInput + '% of rent' : fmt(otherMonthly) + '/mo'})</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.otherExpenseAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Replacement Reserves (${capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr'})</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.capexReserveAnnual)}</span></div>
-    <div class="result-row"><span class="result-label">Owner-Paid Utilities</span><span class="result-value">-${fmtArv(stabilizedValuation.expenses.utilitiesAnnual)}</span></div>
+    <div class="result-row"><span class="result-label">Insurance</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.insuranceAnnual, '-')}</span></div>
+    <div class="result-row"><span class="result-label">Management (${configuredPmPct}% of EGI)</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.managementAnnual, '-')}</span></div>
+    <div class="result-row"><span class="result-label">Repairs &amp; Maintenance (${capexPct}% of rent)</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.repairsAnnual, '-')}</span></div>
+    <div class="result-row"><span class="result-label">Other Operating Expenses (${otherMode === 'pct' ? otherInput + '% of rent' : fmt(otherMonthly) + '/mo'})</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.otherExpenseAnnual, '-')}</span></div>
+    <div class="result-row"><span class="result-label">Replacement Reserves (${capexResMode === 'pct' ? capexResRaw + '% of income' : fmt(capexResRaw) + '/unit/yr'})</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.capexReserveAnnual, '-')}</span></div>
+    <div class="result-row"><span class="result-label">Owner-Paid Utilities</span><span class="result-value">${fmtArv(stabilizedValuation.expenses.utilitiesAnnual, '-')}</span></div>
     <div class="result-row key"><span class="result-label">Valuation Operating Expense %</span><span class="result-value">${fmtPct(stabilizedValuation.operatingExpensePct)} of EGI</span></div>
     <div class="result-row key"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmtArv(stabilizedValuation.stabilizedNoiAnnual)}</span></div>
     <div class="result-row"><span class="result-label">Exit Cap Rate</span><span class="result-value">${(arvCapRate * 100).toFixed(2)}%</span></div>
@@ -1547,8 +1539,8 @@ function calc() {
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
       <div class="ctc-header">Break-Even (cash flow = $0)</div>
       <div class="result-row"><span class="result-label">Break-Even Occupancy</span><span class="result-value ${cls(cushion, 15, 5)}">${(beOcc * 100).toFixed(1)}%</span></div>
-      <div class="result-row"><span class="result-label">Break-Even Gross Rent</span><span class="result-value">${fmt(beRent)}/mo</span></div>
-      <div class="result-row"><span class="result-label">Break-Even Rent / Unit</span><span class="result-value">${fmt(units ? beRent / units : 0)}/mo</span></div>
+      <div class="result-row"><span class="result-label">Break-Even Gross Rent</span><span class="result-value">${moYr(beRent)}</span></div>
+      <div class="result-row"><span class="result-label">Break-Even Rent / Unit</span><span class="result-value">${moYr(units ? beRent / units : 0)}</span></div>
       <div class="note">Occupancy or rent below these levels turns cash flow negative. Lower break-even = more downside cushion.</div>
     </div>`;
   }
@@ -1702,9 +1694,9 @@ function calc() {
     html += `<div style="margin-top:12px;border:1px solid var(--border);padding:12px 14px;background:var(--panel);">
       <div class="ctc-header">Refinance / BRRRR Exit — Year ${refiYear}</div>
       <div class="result-row key"><span class="result-label">Total Cash Invested (down payment + closing + rehab)</span><span class="result-value warn">${fmt(cashToClose)}</span></div>
-      <div class="result-row"><span class="result-label">${grew ? 'Owner NOI at Refi (Yr ' + refiYear + ', grown)' : 'Owner Stabilized NOI'}</span><span class="result-value">${fmt(noiRefi_yr)}/yr</span></div>
-      <div class="result-row"><span class="result-label">Valuation NOI at Refi</span><span class="result-value">${fmt(noiRefi_yr_forValuation)}/yr</span></div>
-      <div class="result-row"><span class="result-label">Valuation Tax Basis</span><span class="result-value">${fmt(valuationTaxRefi_yr)}/yr · ${refiValuation.taxLabel}</span></div>
+      <div class="result-row"><span class="result-label">${grew ? 'Owner NOI at Refi (Yr ' + refiYear + ', grown)' : 'Owner Stabilized NOI'}</span><span class="result-value">${moYr(noiRefi_yr / 12)}</span></div>
+      <div class="result-row"><span class="result-label">Valuation NOI at Refi</span><span class="result-value">${moYr(noiRefi_yr_forValuation / 12)}</span></div>
+      <div class="result-row"><span class="result-label">Valuation Tax Basis</span><span class="result-value">${moYr(valuationTaxRefi_yr / 12)} · ${refiValuation.taxLabel}</span></div>
       <div class="result-row"><span class="result-label">Automatic ${valueTerm} (${automaticValueLabel})</span><span class="result-value">${fmt(estArvRefi)}</span></div>
       <div class="result-row key"><span class="result-label">${valueTerm} Used (Yr ${refiYear})</span><span class="result-value">${fmt(arvRefi)}</span></div>
       ${refiKeepsFirst ? `<div class="result-row"><span class="result-label">🔒 Existing 1st Mortgage Kept (P&amp;I ${fmt(pi)}/mo, bal. ${fmt(acqBalAtRefi)})</span><span class="result-value">unchanged</span></div>` : ''}
@@ -1712,9 +1704,9 @@ function calc() {
       <div class="result-row"><span class="result-label">${refiKeepsFirst ? '2nd-Position Loan Paid Off' + (rehabLoan > 0 ? ' + rehab' : '') : 'Loans Paid Off' + (rehabLoan > 0 ? ' (acquisition + rehab' + (dpBalAtRefi > 0 ? ' + 2nd' : '') + ')' : (dpBalAtRefi > 0 ? ' (acquisition + 2nd)' : ''))}${refiYear > 0 ? ', bal. @ yr ' + refiYear : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
       <div class="result-row"><span class="result-label">Cash-Out (new loan − payoff)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
       <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
-      <div class="result-row"><span class="result-label">${refiKeepsFirst ? 'New 2nd P&amp;I' : 'New P&amp;I'} (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
-      ${refiKeepsFirst ? `<div class="result-row"><span class="result-label">Total Post-Refi Debt Service (1st + new 2nd)</span><span class="result-value">${fmt(pi + newPI)}/mo</span></div>` : ''}
-      <div class="result-row"><span class="result-label">Post-Refi Cash Flow (Yr ${refiYear})</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
+      <div class="result-row"><span class="result-label">${refiKeepsFirst ? 'New 2nd P&amp;I' : 'New P&amp;I'} (${refiAmortYr}-yr)</span><span class="result-value">${moYr(newPI)}</span></div>
+      ${refiKeepsFirst ? `<div class="result-row"><span class="result-label">Total Post-Refi Debt Service (1st + new 2nd)</span><span class="result-value">${moYr(pi + newPI)}</span></div>` : ''}
+      <div class="result-row"><span class="result-label">Post-Refi Cash Flow (Yr ${refiYear})</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${moYr(postCF, postCF < 0 ? '-' : '')}</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
       <div class="note">Refinance modeled in year ${refiYear}: ${valueTerm} defaults to that year's stabilized NOI divided by the cap rate, unless the override above is entered. Property taxes follow the automatic source in the Property Taxes section. ${valuationTaxMethod === 'reassessed' ? 'With the post-sale reassessment estimate, purchase price can affect value only through the tax line.' : 'Changing down payment, interest rate, or rehab financing does not change value.'}${grew ? ' It reflects rent growth by year ' + refiYear + ' — matching the projection.' : ''}${isBridge ? ` The interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down.` : ` The acquisition loan is paid down to ${fmt(acqBalAtRefi)}.`} Cash left in ≤ $0 = effectively infinite return.</div>
     </div>`;
@@ -1827,7 +1819,7 @@ function collectDealState() {
     toggles: { insMode: insMode, otherMode: otherMode, pmManaged: pmManaged, capexResMode: capexResMode,
                sellerCreditMode: sellerCreditMode, rehabFinanced: rehabFinanced, rehabIO: rehabIO,
                dpFinanced: dpFinanced, dpFinIO: dpFinIO, refiTarget: refiTarget, willRefi: willRefi,
-               taxMode: taxMode, arvPeriodMode: arvPeriodMode }
+               taxMode: taxMode }
   };
 }
 
@@ -1856,7 +1848,6 @@ function applyDealState(state) {
     if (typeof t.dpFinIO === 'boolean' && t.dpFinIO !== dpFinIO) toggleDpFinIO();
     if (typeof t.willRefi === 'boolean') setWillRefi(t.willRefi);
     if (t.taxMode && t.taxMode !== taxMode) toggleTaxMode();
-    if (t.arvPeriodMode && t.arvPeriodMode !== arvPeriodMode) toggleArvPeriod();
     if (t.refiTarget) { const sel = document.getElementById('refitarget'); if (sel) { sel.value = t.refiTarget; onRefiTargetChange(); } }
     // Seller-finance rows follow the restored loan type (updateLoanType would reset dp, so sync directly).
     const lt = (document.getElementById('loan_type') || {}).value;
