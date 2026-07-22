@@ -308,8 +308,15 @@
           '<div class="hint">Build the unit mix, then send the total to Acquisition (in-place) or Stabilized (market) rents &amp; unit count</div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
-          '<button type="button" class="toggle-btn" style="width:100%;text-align:center;padding:9px;" onclick="exportCalcXLSX()">⬇ Export Deal Sheet (Excel)</button>' +
-          '<div class="hint">Styled .xlsx with every active input &amp; result — opens in Excel, Google Sheets, or Numbers</div>' +
+          '<div class="ctc-header">Saved Deals</div>' +
+          '<div class="input-with-toggle">' +
+            '<input type="text" id="deal-name" placeholder="Name this deal (e.g. 123 Main St)" maxlength="48" style="flex:1;">' +
+            '<button type="button" class="toggle-btn" onclick="saveDeal()">💾 Save</button>' +
+          '</div>' +
+          '<div id="deal-save-msg" class="hint" style="min-height:0;"></div>' +
+          '<div id="deal-list" style="margin-top:4px;"></div>' +
+          '<button type="button" class="toggle-btn" style="width:100%;text-align:center;padding:8px;margin-top:6px;" onclick="resetDeal()">↺ Reset to Defaults</button>' +
+          '<div class="hint">Deals are saved in this browser only (up to 10 per market). Reset restores the factory defaults without deleting your saved deals.</div>' +
         '</div>';
       calcInputs.appendChild(ext);
 
@@ -350,7 +357,13 @@
       })();
 
       const rrRows = document.getElementById('rr-rows');
-      if (rrRows) { rrRows.innerHTML = rrRowHTML(startUnits, Math.round(perUnitRent())); rrSum(); }
+      if (rrRows) { rrRows.innerHTML = ''; rrSum(); }   // start empty — a row appears only when the user clicks "+ Add unit type"
+
+      // Populate the Saved Deals list, and auto-restore the last-used saved deal (if any) with a notice.
+      // Deferred to a macrotask so it runs AFTER the location page's own inline calc() on load
+      // (same pattern as the loan-calc auto-run above) — otherwise that later calc() paints over the restore.
+      if (typeof renderSavedList === 'function') renderSavedList();
+      setTimeout(function () { if (typeof restoreLastDeal === 'function') restoreLastDeal(); }, 0);
     }
   }
 
@@ -1775,260 +1788,214 @@ function toggleCheck(el) {
   ic.textContent = ic.textContent === '⬜' ? '✅' : '⬜';
 }
 
-/* ─── Export current deal to a styled Excel workbook (.xlsx) ───
- * Reads the rendered DOM so the export always matches what's on screen:
- * every VISIBLE input (incl. toggle modes & the rent-roll mix — hidden/
- * inactive fields are skipped), every result section, verdicts, and the
- * projection table as a real spreadsheet table. Styled with the brand
- * palette (navy section bars, gold table headers, sage verdict rows).
- * The .xlsx is hand-rolled (ZIP + OpenXML) — no libraries, works offline.
- * Values are a snapshot of the calculator, not live formulas. */
-
-const _CRC_TABLE = (function () {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
-  return t;
-})();
-function _crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = _CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
-
-/* Minimal ZIP writer (store method — files are tiny, no compression needed) */
-function _zipStore(files) {
-  const enc = new TextEncoder();
-  const parts = [], central = [];
-  let offset = 0;
-  const d = new Date();
-  const dosTime = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
-  const dosDate = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
-  files.forEach(function (f) {
-    const name = enc.encode(f.name), data = enc.encode(f.xml), crc = _crc32(data), sz = data.length;
-    const lh = new DataView(new ArrayBuffer(30));
-    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true);
-    lh.setUint16(10, dosTime, true);   lh.setUint16(12, dosDate, true);
-    lh.setUint32(14, crc, true);       lh.setUint32(18, sz, true); lh.setUint32(22, sz, true);
-    lh.setUint16(26, name.length, true);
-    parts.push(new Uint8Array(lh.buffer), name, data);
-    const ch = new DataView(new ArrayBuffer(46));
-    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
-    ch.setUint16(12, dosTime, true);   ch.setUint16(14, dosDate, true);
-    ch.setUint32(16, crc, true);       ch.setUint32(20, sz, true); ch.setUint32(24, sz, true);
-    ch.setUint16(28, name.length, true);
-    ch.setUint32(42, offset, true);
-    central.push(new Uint8Array(ch.buffer), name);
-    offset += 30 + name.length + sz;
-  });
-  let cdSize = 0; central.forEach(function (a) { cdSize += a.length; });
-  const end = new DataView(new ArrayBuffer(22));
-  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
-  end.setUint32(12, cdSize, true);    end.setUint32(16, offset, true);
-  const out = new Uint8Array(offset + cdSize + 22);
-  let p = 0;
-  parts.concat(central, [new Uint8Array(end.buffer)]).forEach(function (a) { out.set(a, p); p += a.length; });
-  return out;
-}
-
-function _xmlEsc(s) {
-  return String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-/* Walk the rendered calculator into a flat list of typed lines */
-function _collectDealLines() {
-  const lines = [];
+/* ─── Saved Deals — named deal versions in localStorage, per market ───
+ * Manual save/load: the user names a deal and saves it (up to 10 per
+ * location). On return, the last-used deal auto-restores with a notice.
+ * Browser-local only — same mechanism as the theme toggle, no server. */
+const DEAL_MAX = 10;
+function _dealKey() {
   const cfg = window.PLAYBOOK_CONFIG || {};
-  function hiddenWithin(el, stop) {
-    for (let n = el; n && n !== stop; n = n.parentElement) { if (n.style && n.style.display === 'none') return true; }
-    return false;
-  }
-  lines.push({ t: 'title',  a: 'PITTSBURGH MARKET HUB — DEAL SHEET' });
-  lines.push({ t: 'sub',    a: (cfg.locationName || 'Location') + ' Investment Playbook · Luminous Steel City Holdings LLC' });
-  lines.push({ t: 'sub',    a: 'Exported ' + new Date().toLocaleString() });
-  lines.push({ t: 'blank' });
-  lines.push({ t: 'banner', a: 'DEAL INPUTS' });
+  return 'pmh-deals-' + (cfg.locationName || 'default');
+}
+function _readDeals() {
+  try {
+    const o = JSON.parse(localStorage.getItem(_dealKey()) || 'null');
+    if (!o || !Array.isArray(o.versions)) return { versions: [], lastLoaded: '' };
+    return { versions: o.versions, lastLoaded: o.lastLoaded || '' };
+  } catch (e) { return { versions: [], lastLoaded: '' }; }
+}
+function _writeDeals(o) {
+  try { localStorage.setItem(_dealKey(), JSON.stringify(o)); return true; } catch (e) { return false; }
+}
 
+function collectDealState() {
   const wrap = document.querySelector('.calc-inputs');
-  if (wrap) {
-    let firstGroup = true;
-    wrap.querySelectorAll('.ctc-header, .input-row, .rr-row').forEach(function (el) {
-      if (hiddenWithin(el, wrap)) return;   // skip inactive fields (e.g. seller-finance rows on a conventional loan)
-      if (el.matches('.ctc-header')) { lines.push({ t: 'group', a: el.textContent }); firstGroup = false; return; }
-      if (firstGroup) { lines.push({ t: 'group', a: 'Property & Financing' }); firstGroup = false; }
-      if (el.matches('.rr-row')) {
-        const cnt = parseFloat((el.querySelector('.rr-count') || {}).value) || 0;
-        if (cnt > 0) {
-          const typ = (el.querySelector('.rr-type') || {}).value || '';
-          const rr  = parseFloat((el.querySelector('.rr-rent') || {}).value) || 0;
-          lines.push({ t: 'kv', a: 'Unit mix — ' + cnt + ' × ' + typ, b: '$' + rr.toLocaleString('en-US') + '/mo each' });
-        }
-        return;
-      }
-      const lbl = el.querySelector('label');
-      if (!lbl) return;
-      const sel = el.querySelector('select');
-      const inp = el.querySelector('input');
-      const modeBtn = el.querySelector('.input-with-toggle .toggle-btn');
-      const soloBtn = el.querySelector('.toggle-btn');
-      let val = null;
-      if (sel)      val = sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : sel.value;
-      else if (inp) val = inp.value + (modeBtn ? ' ' + modeBtn.textContent : '');
-      else if (soloBtn) val = soloBtn.textContent;
-      if (val != null) lines.push({ t: 'kv', a: lbl.textContent, b: val });
-    });
-  }
-
-  lines.push({ t: 'blank' });
-  lines.push({ t: 'banner', a: 'RESULTS' });
-  const res = document.getElementById('results');
-  if (res) {
-    let started = false;
-    res.querySelectorAll('.ctc-header, .result-row, .verdict, .data-table, .note').forEach(function (el) {
-      if (el.matches('.ctc-header')) { lines.push({ t: 'group', a: el.textContent }); started = true; return; }
-      if (!started) { lines.push({ t: 'group', a: 'Deal Metrics' }); started = true; }
-      if (el.matches('.verdict')) { lines.push({ t: 'verdict', a: el.textContent }); return; }
-      if (el.matches('.note'))    { lines.push({ t: 'note',    a: el.textContent }); return; }
-      if (el.matches('.data-table')) {
-        lines.push({ t: 'thead', c: [].map.call(el.querySelectorAll('thead th'), function (th) { return th.textContent; }) });
-        el.querySelectorAll('tbody tr').forEach(function (tr) {
-          lines.push({ t: 'trow', c: [].map.call(tr.querySelectorAll('td'), function (td) { return td.textContent; }) });
-        });
-        return;
-      }
-      const l = el.querySelector('.result-label'), v = el.querySelector('.result-value');
-      if (l && v) lines.push({ t: 'kv', a: l.textContent, b: v.textContent, k: el.classList.contains('key') });
-    });
-  }
-  lines.push({ t: 'blank' });
-  lines.push({ t: 'note', a: 'Snapshot of the on-screen Deal Calculator — display values, not live formulas.' });
-  return lines;
+  const inputs = {};
+  if (wrap) wrap.querySelectorAll('input[id], select[id]').forEach(function (el) {
+    if (el.id === 'deal-name') return;               // the name field isn't part of the deal
+    inputs[el.id] = el.value;
+  });
+  const rentRoll = [].map.call(document.querySelectorAll('#rr-rows .rr-row'), function (r) {
+    return {
+      type:  (r.querySelector('.rr-type')  || {}).value || '',
+      count: (r.querySelector('.rr-count') || {}).value || '',
+      rent:  (r.querySelector('.rr-rent')  || {}).value || ''
+    };
+  });
+  return {
+    v: 1, units: getUnits(), inputs: inputs, rentRoll: rentRoll,
+    toggles: { insMode: insMode, otherMode: otherMode, pmManaged: pmManaged, capexResMode: capexResMode,
+               sellerCreditMode: sellerCreditMode, rehabFinanced: rehabFinanced, rehabIO: rehabIO,
+               dpFinanced: dpFinanced, dpFinIO: dpFinIO, refiTarget: refiTarget, willRefi: willRefi,
+               taxMode: taxMode, arvPeriodMode: arvPeriodMode }
+  };
 }
 
-function exportCalcXLSX() {
-  if (typeof calc === 'function') { try { calc(); } catch (e) {} }
-  const lines = _collectDealLines();
-  const COLS = ['A', 'B', 'C', 'D', 'E'];
-  const merges = [];
-  let rowsXml = '', r = 0;
-
-  function cellXml(col, style, text) {
-    return '<c r="' + col + r + '" s="' + style + '" t="inlineStr"><is><t xml:space="preserve">' + _xmlEsc(text) + '</t></is></c>';
-  }
-  function rowOpen(ht) { return '<row r="' + r + '"' + (ht ? ' ht="' + ht + '" customHeight="1"' : '') + '>'; }
-  function fullRow(style, text, ht) {
-    r++;
-    let cells = '';
-    for (let i = 0; i < 5; i++) cells += cellXml(COLS[i], style, i === 0 ? text : '');
-    rowsXml += rowOpen(ht) + cells + '</row>';
-    merges.push('A' + r + ':E' + r);
-  }
-
-  lines.forEach(function (ln) {
-    if (ln.t === 'blank')   { r++; rowsXml += rowOpen() + '</row>'; return; }
-    if (ln.t === 'title')   return fullRow(1, ln.a, 30);
-    if (ln.t === 'sub')     return fullRow(2, ln.a);
-    if (ln.t === 'banner')  return fullRow(3, ln.a, 20);
-    if (ln.t === 'group')   return fullRow(12, ln.a, 17);
-    if (ln.t === 'verdict') return fullRow(8, ln.a, 28);
-    if (ln.t === 'note')    return fullRow(2, ln.a);
-    if (ln.t === 'thead' || ln.t === 'trow') {
-      r++;
-      const isH = ln.t === 'thead';
-      let cells = '';
-      for (let i = 0; i < 5; i++) cells += cellXml(COLS[i], isH ? 9 : (i === 0 ? 11 : 10), ln.c[i] == null ? '' : ln.c[i]);
-      rowsXml += rowOpen() + cells + '</row>';
-      return;
+function applyDealState(state) {
+  if (!state) return;
+  try {
+    if (state.units) setUnits(state.units);          // units first — drives commercial mode & rent defaults
+    if (state.inputs) Object.keys(state.inputs).forEach(function (id) {
+      if (id === 'deal-name') return;
+      const el = document.getElementById(id);
+      if (el) el.value = state.inputs[id];           // saved value overrides any preset set by setUnits
+    });
+    ['rentstab', 'stabvac', 'refiamort', 'arv'].forEach(function (id) {   // don't let auto-sync clobber these
+      const el = document.getElementById(id); if (el) el.dataset.touched = '1';
+    });
+    // Re-apply toggle UI by reusing the existing toggles — flip only when the saved value differs from current.
+    const t = state.toggles || {};
+    if (t.insMode && t.insMode !== insMode) toggleIns();
+    if (t.otherMode && t.otherMode !== otherMode) toggleOther();
+    if (typeof t.pmManaged === 'boolean' && t.pmManaged !== pmManaged) togglePM();
+    if (t.capexResMode && t.capexResMode !== capexResMode) toggleCapexRes();
+    if (t.sellerCreditMode && t.sellerCreditMode !== sellerCreditMode) toggleSellerCredit();
+    if (typeof t.rehabFinanced === 'boolean' && t.rehabFinanced !== rehabFinanced) toggleRehabFin();
+    if (typeof t.rehabIO === 'boolean' && t.rehabIO !== rehabIO) toggleRehabIO();
+    if (typeof t.dpFinanced === 'boolean' && t.dpFinanced !== dpFinanced) toggleDpFin();
+    if (typeof t.dpFinIO === 'boolean' && t.dpFinIO !== dpFinIO) toggleDpFinIO();
+    if (typeof t.willRefi === 'boolean') setWillRefi(t.willRefi);
+    if (t.taxMode && t.taxMode !== taxMode) toggleTaxMode();
+    if (t.arvPeriodMode && t.arvPeriodMode !== arvPeriodMode) toggleArvPeriod();
+    if (t.refiTarget) { const sel = document.getElementById('refitarget'); if (sel) { sel.value = t.refiTarget; onRefiTargetChange(); } }
+    // Seller-finance rows follow the restored loan type (updateLoanType would reset dp, so sync directly).
+    const lt = (document.getElementById('loan_type') || {}).value;
+    const sfA = document.getElementById('sf-amort-row'), sfB = document.getElementById('sf-balloon-row');
+    if (sfA) sfA.style.display = lt === 'seller' ? '' : 'none';
+    if (sfB) sfB.style.display = lt === 'seller' ? '' : 'none';
+    // Rebuild rent-roll rows.
+    const rr = document.getElementById('rr-rows');
+    if (rr) {
+      rr.innerHTML = '';
+      (state.rentRoll || []).forEach(function (row) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = rrRowHTML(row.count || 0, row.rent || 0, row.type || '');
+        if (tmp.firstChild) rr.appendChild(tmp.firstChild);
+      });
+      rrSum();
     }
-    r++;  // kv — label in A, value merged across B:E
-    let cells = cellXml('A', ln.k ? 6 : 4, ln.a);
-    for (let i = 1; i < 5; i++) cells += cellXml(COLS[i], ln.k ? 7 : 5, i === 1 ? ln.b : '');
-    rowsXml += rowOpen() + cells + '</row>';
-    merges.push('B' + r + ':E' + r);
+  } catch (e) {}
+  calc();
+}
+
+function _dealMsg(text) {
+  const el = document.getElementById('deal-save-msg');
+  if (!el) return;
+  el.textContent = text;
+  clearTimeout(_dealMsg._t);
+  _dealMsg._t = setTimeout(function () { el.textContent = ''; }, 4000);
+}
+
+function saveDeal() {
+  const nameEl = document.getElementById('deal-name');
+  const name = ((nameEl && nameEl.value) || '').trim();
+  if (!name) { _dealMsg('Enter a name first.'); return; }
+  const store = _readDeals();
+  const existing = store.versions.findIndex(function (v) { return v.name.toLowerCase() === name.toLowerCase(); });
+  if (existing < 0 && store.versions.length >= DEAL_MAX) {
+    _dealMsg('You have ' + DEAL_MAX + ' saved deals (the max). Delete one first.'); return;
+  }
+  const entry = { name: name, savedAt: Date.now(), state: collectDealState() };
+  if (existing >= 0) store.versions[existing] = entry; else store.versions.push(entry);
+  store.lastLoaded = name;
+  if (_writeDeals(store)) { _dealMsg((existing >= 0 ? 'Updated “' : 'Saved “') + name + '”.'); renderSavedList(); }
+  else _dealMsg('Could not save — browser storage is blocked.');
+}
+
+function loadDealAt(i) {
+  const store = _readDeals();
+  const v = store.versions[i];
+  if (!v) return;
+  applyDealState(v.state);
+  store.lastLoaded = v.name; _writeDeals(store);
+  const nameEl = document.getElementById('deal-name'); if (nameEl) nameEl.value = v.name;
+  renderSavedList();
+  showRestoreNotice(v.name, false);
+}
+
+function deleteDealAt(i) {
+  const store = _readDeals();
+  const v = store.versions[i];
+  if (!v) return;
+  store.versions.splice(i, 1);
+  if (v.name === store.lastLoaded) store.lastLoaded = '';
+  _writeDeals(store);
+  renderSavedList();
+  _dealMsg('Deleted “' + v.name + '”.');
+}
+
+function resetDeal() {
+  const store = _readDeals();
+  store.lastLoaded = '';            // stop auto-restore; keep the saved versions
+  _writeDeals(store);
+  location.reload();
+}
+
+function renderSavedList() {
+  const box = document.getElementById('deal-list');
+  if (!box) return;
+  box.innerHTML = '';
+  const store = _readDeals();
+  if (!store.versions.length) {
+    const p = document.createElement('div');
+    p.className = 'hint'; p.style.margin = '2px 0';
+    p.textContent = 'No saved deals yet.';
+    box.appendChild(p); return;
+  }
+  store.versions.slice().sort(function (a, b) { return b.savedAt - a.savedAt; }).forEach(function (v) {
+    const realIdx = store.versions.indexOf(v);
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid var(--row-line);';
+    const label = document.createElement('span');
+    label.style.cssText = 'flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.textContent = v.name;
+    label.title = 'Saved ' + new Date(v.savedAt).toLocaleString();
+    const load = document.createElement('button');
+    load.type = 'button'; load.className = 'toggle-btn'; load.style.cssText = 'padding:3px 9px;font-size:11px;';
+    load.textContent = 'Load'; load.onclick = function () { loadDealAt(realIdx); };
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'toggle-btn'; del.style.cssText = 'padding:3px 8px;font-size:11px;';
+    del.textContent = '✕'; del.title = 'Delete'; del.onclick = function () { deleteDealAt(realIdx); };
+    row.appendChild(label); row.appendChild(load); row.appendChild(del);
+    box.appendChild(row);
   });
+}
 
-  const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>' +
-    '<cols><col min="1" max="1" width="42" customWidth="1"/><col min="2" max="5" width="14" customWidth="1"/></cols>' +
-    '<sheetData>' + rowsXml + '</sheetData>' +
-    (merges.length ? '<mergeCells count="' + merges.length + '">' + merges.map(function (m) { return '<mergeCell ref="' + m + '"/>'; }).join('') + '</mergeCells>' : '') +
-    '</worksheet>';
+function showRestoreNotice(name, restored) {
+  const wrap = document.querySelector('#panel-calculator .calc-wrap');
+  if (!wrap || !wrap.parentElement) return;
+  const old = document.getElementById('deal-restore-notice');
+  if (old) old.remove();
+  const n = document.createElement('div');
+  n.id = 'deal-restore-notice';
+  n.className = 'alert green';
+  n.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  const txt = document.createElement('span');
+  txt.innerHTML = '✓ ' + (restored ? 'Restored your saved deal “<strong></strong>”.' : 'Loaded “<strong></strong>”.');
+  txt.querySelector('strong').textContent = name;
+  const controls = document.createElement('span');
+  controls.style.cssText = 'display:flex;gap:8px;white-space:nowrap;';
+  const reset = document.createElement('button');
+  reset.type = 'button'; reset.className = 'toggle-btn'; reset.style.cssText = 'padding:3px 9px;font-size:11px;';
+  reset.textContent = 'Reset to defaults'; reset.onclick = resetDeal;
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button'; dismiss.className = 'toggle-btn'; dismiss.style.cssText = 'padding:3px 9px;font-size:11px;';
+  dismiss.textContent = 'Dismiss'; dismiss.onclick = function () { n.remove(); };
+  controls.appendChild(reset); controls.appendChild(dismiss);
+  n.appendChild(txt); n.appendChild(controls);
+  wrap.parentElement.insertBefore(n, wrap);
+}
 
-  /* Brand palette: navy #0d1b2a bars · gold #c9a84c table headers · sage #edefdf verdict/group fills */
-  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<fonts count="6">' +
-      '<font><sz val="11"/><name val="Calibri"/></font>' +
-      '<font><b/><sz val="15"/><color rgb="FFF5F0E8"/><name val="Calibri"/></font>' +
-      '<font><i/><sz val="10"/><color rgb="FF627D98"/><name val="Calibri"/></font>' +
-      '<font><b/><sz val="11"/><color rgb="FFF5F0E8"/><name val="Calibri"/></font>' +
-      '<font><b/><sz val="11"/><color rgb="FF102A43"/><name val="Calibri"/></font>' +
-      '<font><b/><sz val="11"/><color rgb="FF0D1B2A"/><name val="Calibri"/></font>' +
-    '</fonts>' +
-    '<fills count="5">' +
-      '<fill><patternFill patternType="none"/></fill>' +
-      '<fill><patternFill patternType="gray125"/></fill>' +
-      '<fill><patternFill patternType="solid"><fgColor rgb="FF0D1B2A"/></patternFill></fill>' +
-      '<fill><patternFill patternType="solid"><fgColor rgb="FFC9A84C"/></patternFill></fill>' +
-      '<fill><patternFill patternType="solid"><fgColor rgb="FFEDEFDF"/></patternFill></fill>' +
-    '</fills>' +
-    '<borders count="2">' +
-      '<border><left/><right/><top/><bottom/><diagonal/></border>' +
-      '<border><left style="thin"><color rgb="FFBCCCDC"/></left><right style="thin"><color rgb="FFBCCCDC"/></right><top style="thin"><color rgb="FFBCCCDC"/></top><bottom style="thin"><color rgb="FFBCCCDC"/></bottom><diagonal/></border>' +
-    '</borders>' +
-    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="13">' +
-      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-      '<xf fontId="1" fillId="2" applyFont="1" applyFill="1" applyAlignment="1" xfId="0"><alignment vertical="center"/></xf>' +
-      '<xf fontId="2" applyFont="1" xfId="0"/>' +
-      '<xf fontId="3" fillId="2" applyFont="1" applyFill="1" applyAlignment="1" xfId="0"><alignment vertical="center"/></xf>' +
-      '<xf fontId="0" xfId="0"/>' +
-      '<xf fontId="0" applyAlignment="1" xfId="0"><alignment horizontal="right"/></xf>' +
-      '<xf fontId="4" applyFont="1" xfId="0"/>' +
-      '<xf fontId="4" applyFont="1" applyAlignment="1" xfId="0"><alignment horizontal="right"/></xf>' +
-      '<xf fontId="4" fillId="4" applyFont="1" applyFill="1" applyAlignment="1" xfId="0"><alignment vertical="center" wrapText="1"/></xf>' +
-      '<xf fontId="5" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" xfId="0"><alignment horizontal="center"/></xf>' +
-      '<xf borderId="1" applyBorder="1" applyAlignment="1" xfId="0"><alignment horizontal="right"/></xf>' +
-      '<xf borderId="1" applyBorder="1" applyAlignment="1" xfId="0"><alignment horizontal="center"/></xf>' +
-      '<xf fontId="5" fillId="4" applyFont="1" applyFill="1" applyAlignment="1" xfId="0"><alignment vertical="center"/></xf>' +
-    '</cellXfs>' +
-    '</styleSheet>';
-
-  const workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-    '<sheets><sheet name="Deal Sheet" sheetId="1" r:id="rId1"/></sheets></workbook>';
-  const wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
-    '</Relationships>';
-  const rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
-    '</Relationships>';
-  const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-    '<Default Extension="xml" ContentType="application/xml"/>' +
-    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
-    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
-    '</Types>';
-
-  const zip = _zipStore([
-    { name: '[Content_Types].xml',           xml: contentTypes },
-    { name: '_rels/.rels',                   xml: rootRels },
-    { name: 'xl/workbook.xml',               xml: workbook },
-    { name: 'xl/_rels/workbook.xml.rels',    xml: wbRels },
-    { name: 'xl/styles.xml',                 xml: styles },
-    { name: 'xl/worksheets/sheet1.xml',      xml: sheet }
-  ]);
-  const cfg = window.PLAYBOOK_CONFIG || {};
-  const loc = (cfg.locationName || 'deal').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'deal';
-  const fname = 'deal_' + loc + '_' + new Date().toISOString().slice(0, 10) + '.xlsx';
-  const blob = new Blob([zip], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = fname;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+function restoreLastDeal() {
+  try {
+    const store = _readDeals();
+    if (!store.lastLoaded) return;
+    const v = store.versions.find(function (x) { return x.name === store.lastLoaded; });
+    if (!v) return;
+    const nameEl = document.getElementById('deal-name'); if (nameEl) nameEl.value = v.name;
+    applyDealState(v.state);
+    showRestoreNotice(v.name, true);
+  } catch (e) {}
 }
 
 /* ─── Loan Calculator helpers ─────────────────────────── */
