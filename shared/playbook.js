@@ -255,6 +255,20 @@
           '</div>' +
         '</div>' +
         '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
+          '<div class="ctc-header">Down Payment Financing (optional)</div>' +
+          '<div class="input-row"><label>Fund the down payment with a 2nd-position loan?</label>' +
+            '<button type="button" class="toggle-btn" id="dpfin-toggle" style="width:100%;text-align:center;" onclick="toggleDpFin()">No — Down Payment Paid in Cash</button>' +
+            '<div class="hint">Cover the down payment with a separate 2nd-position (gap) loan instead of cash. Slashes cash-to-close but adds a 2nd monthly payment — this affects cash flow, DSCR, and cash-on-cash, but not NOI</div></div>' +
+          '<div id="dpfin-rows" style="display:none;">' +
+            '<div class="input-row"><label>% of Down Payment Financed</label><input type="number" id="dpfin-pct" value="100" oninput="calc()"></div>' +
+            '<div class="input-row"><label>2nd-Position Loan Rate (%)</label><input type="number" id="dpfin-rate" value="10" oninput="calc()"></div>' +
+            '<div class="input-row"><label>Payment Type</label>' +
+              '<button type="button" class="toggle-btn" id="dpfin-io-toggle" style="width:100%;text-align:center;" onclick="toggleDpFinIO()">Interest-Only (gap loan)</button>' +
+              '<div class="hint">Interest-only is typical for a short-term gap/2nd loan; amortizing uses the term below</div></div>' +
+            '<div class="input-row" id="dpfin-term-row" style="display:none;"><label>2nd-Position Amortization (yrs)</label><input type="number" id="dpfin-term" value="30" oninput="calc()"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:12px;">' +
         '<div class="ctc-header">Stabilized Value &amp; Refinance (optional)</div>' +
           '<div class="input-row"><label>Stabilized Cap Rate — for Value (%)</label>' +
             '<input type="number" id="arvcaprate" value="8" oninput="calc()">' +
@@ -266,6 +280,12 @@
             '<button type="button" class="toggle-btn" id="willrefi-toggle" style="width:100%;text-align:center;" onclick="toggleWillRefi()">No — buy &amp; hold</button>' +
             '<div class="hint">Yes = pull cash out with a new loan once stabilized (BRRRR). No = buy &amp; hold on the original financing — the Stabilized Deal section is then your after-stabilization return</div></div>' +
           '<div id="refi-rows" style="display:none;">' +
+            '<div class="input-row" id="refitarget-row" style="display:none;"><label>Refinance Target</label>' +
+              '<select id="refitarget" onchange="onRefiTargetChange()">' +
+                '<option value="both">New 1st mortgage — pays off 1st + 2nd</option>' +
+                '<option value="second">2nd position only — keep the existing 1st mortgage</option>' +
+              '</select>' +
+              '<div class="hint">Only relevant when the down payment is financed. "2nd position only" keeps your original first mortgage and its payment, and refinances just the 2nd-position loan out</div></div>' +
             '<div class="input-row"><label>Refi LTV (%)</label><input type="number" id="refiltv" value="75" oninput="calc()"></div>' +
             '<div class="input-row"><label>Refi Rate (%)</label><input type="number" id="refirate" value="7.5" oninput="calc()"></div>' +
             '<div class="input-row"><label>Refi Amortization (yrs)</label><input type="number" id="refiamort" value="30" oninput="this.dataset.touched=\'1\';calc()">' +
@@ -587,6 +607,9 @@ let capexResMode = 'pct';    /* 'unit' = $/unit/yr · 'pct' = % of gross income 
 let sellerCreditMode = 'repairs';  /* 'repairs' = escrowed repair holdback · 'closing' = toward closing costs */
 let rehabFinanced = false;   /* finance rehab with a separate loan instead of cash */
 let rehabIO       = true;    /* rehab loan interest-only (hard-money) vs amortizing */
+let dpFinanced    = false;   /* fund the down payment with a 2nd-position loan instead of cash */
+let dpFinIO       = true;    /* down-payment loan interest-only (gap/hard-money) vs amortizing */
+let refiTarget    = 'both';  /* at refinance: 'both' = new 1st mortgage retires 1st+2nd · 'second' = keep the 1st, refinance only the 2nd-position loan out */
 let willRefi      = false;   /* true = BRRRR (pull cash out once stabilized) · false = buy & hold on original financing */
 let taxMode       = 'clr';   /* acquisition tax only: 'clr' = post-sale reassessment estimate · 'assessed' = current county assessed value */
 let arvPeriodMode = 'yr';    /* ARV Calculation Breakdown display period: 'yr' | 'mo' */
@@ -926,6 +949,33 @@ function toggleRehabIO() {
   calc();
 }
 
+/* Down-payment financing toggles (2nd-position loan on the down payment) */
+function toggleDpFin() {
+  dpFinanced = !dpFinanced;
+  const btn  = document.getElementById('dpfin-toggle');
+  const rows = document.getElementById('dpfin-rows');
+  const tgt  = document.getElementById('refitarget-row');
+  if (btn)  btn.textContent = dpFinanced ? 'Yes — Down Payment Financed (2nd-position loan)' : 'No — Down Payment Paid in Cash';
+  if (rows) rows.style.display = dpFinanced ? '' : 'none';
+  if (tgt)  tgt.style.display  = dpFinanced ? '' : 'none';
+  calc();
+}
+
+function toggleDpFinIO() {
+  dpFinIO = !dpFinIO;
+  const btn     = document.getElementById('dpfin-io-toggle');
+  const termRow = document.getElementById('dpfin-term-row');
+  if (btn)     btn.textContent = dpFinIO ? 'Interest-Only (gap loan)' : 'Amortizing';
+  if (termRow) termRow.style.display = dpFinIO ? 'none' : '';
+  calc();
+}
+
+function onRefiTargetChange() {
+  const sel = document.getElementById('refitarget');
+  refiTarget = sel ? sel.value : 'both';
+  calc();
+}
+
 /* ─── Toggle helpers ──────────────────────────────────────── */
 function toggleIns() {
   const btn = document.getElementById('ins-toggle');
@@ -1101,6 +1151,19 @@ function calc() {
     ? (rehabIO ? rehabLoan * rehabRateMo : pmtFromLoan(rehabLoan, rehabRateMo, rehabTermYr * 12))
     : 0;
 
+  // Down-payment financing — a 2nd-position loan covering part/all of the down payment.
+  // Lowers the cash brought to close and adds a monthly payment. It is debt service, so it hits
+  // cash flow, DSCR, and cash-on-cash — but NOT NOI (NOI is before all financing).
+  const dpFinPct      = (dpFinanced && !isCash)
+    ? Math.min(100, Math.max(0, parseFloat((document.getElementById('dpfin-pct') || {}).value) || 0)) / 100
+    : 0;
+  const dpLoanAmt     = dp * dpFinPct;
+  const dpFinRateMo   = (parseFloat((document.getElementById('dpfin-rate') || {}).value) || 0) / 100 / 12;
+  const dpFinTermYr   = parseFloat((document.getElementById('dpfin-term') || {}).value) || 30;
+  const dpLoanPayment = dpLoanAmt > 0
+    ? (dpFinIO ? dpLoanAmt * dpFinRateMo : pmtFromLoan(dpLoanAmt, dpFinRateMo, dpFinTermYr * 12))
+    : 0;
+
   // Tax — assessed value (price × CLR estimate, or the actual county assessment) × combined mills
   const millRateIn  = parseFloat((document.getElementById('millrate') || {}).value);
   const millsUsed   = (isFinite(millRateIn) && millRateIn > 0) ? millRateIn : cfg.mills;
@@ -1121,18 +1184,18 @@ function calc() {
   const noi              = egi - totalExp;
   const noi_yr           = noi * 12;
   const capRate          = pp > 0 ? (noi_yr / pp * 100) : 0;
-  const cf               = noi - pi - pmiMonthly - rehabPI;
+  const cf               = noi - pi - pmiMonthly - rehabPI - dpLoanPayment;
 
-  // Returns — financed rehab leaves Cash to Close; rehab loan adds to debt service
+  // Returns — financed rehab and a financed down payment both leave Cash to Close; each adds debt service
   const closingCostAmt   = pp * closingCostPct / 100;
   // Seller credit: purchase price & loan are unchanged — it just reduces the cash you bring.
   const sellerCredit     = parseFloat((document.getElementById('sellercredit') || {}).value) || 0;
-  const cashBeforeCredit = dp + closingCostAmt + (rehab - rehabLoan) + fhaUpfrontMip;
+  const cashBeforeCredit = (dp - dpLoanAmt) + closingCostAmt + (rehab - rehabLoan) + fhaUpfrontMip;
   const creditApplied    = Math.max(0, Math.min(sellerCredit, cashBeforeCredit)); // no cash back at closing
   const creditExcess     = sellerCredit - creditApplied;                          // disallowed → should be a price cut
   const cashToClose      = cashBeforeCredit - creditApplied;
   const coc              = cashToClose > 0 ? (cf * 12 / cashToClose * 100) : 0;
-  const dscr           = (pi + rehabPI) > 0 ? noi / (pi + rehabPI) : 0;
+  const dscr           = (pi + rehabPI + dpLoanPayment) > 0 ? noi / (pi + rehabPI + dpLoanPayment) : 0;
   const gsi_yr         = grossIncome * 12;                          // Gross Scheduled Income — rent + other income, before vacancy
   const grm            = rentGross > 0 ? pp / (rentGross * 12) : 0;
   const pricePerUnit   = units ? pp / units : 0;
@@ -1163,10 +1226,10 @@ function calc() {
   const stabOperatingExpPct = stabEGI > 0 ? stabTotalExp / stabEGI * 100 : 0;
   const stabNOI       = stabEGI - stabTotalExp;
   const stabNOI_yr    = stabNOI * 12;
-  const stabCF        = stabNOI - pi - pmiMonthly - rehabPI;
+  const stabCF        = stabNOI - pi - pmiMonthly - rehabPI - dpLoanPayment;
   const stabCapRate   = pp > 0 ? stabNOI_yr / pp * 100 : 0;
   const stabCoC       = cashToClose > 0 ? stabCF * 12 / cashToClose * 100 : 0;
-  const stabDSCR      = (pi + rehabPI) > 0 ? stabNOI / (pi + rehabPI) : 0;
+  const stabDSCR      = (pi + rehabPI + dpLoanPayment) > 0 ? stabNOI / (pi + rehabPI + dpLoanPayment) : 0;
   const grmStab       = rentStab > 0 ? pp / (rentStab * 12) : 0;
   const arvCapRate    = (parseFloat((document.getElementById('arvcaprate') || {}).value) || 0) / 100;
 
@@ -1262,6 +1325,8 @@ function calc() {
     {l: isBridge ? 'Monthly Interest (Bridge IO @ ' + rate + '%)' : 'Monthly P&I', v:fmt(pi) + '/mo', c:'', key:false},
     ...(isBridge ? [{l:'⚠ Interest-Only — No Principal Paydown', v:fmt(loan) + ' balance carries in full to your refi/sale', c:'bad', key:false}] : []),
     ...(rehabPI > 0 ? [{l:'Rehab Loan ' + (rehabIO ? 'Interest' : 'P&I') + ' (' + fmt(rehabLoan) + ' @ ' + (rehabRateMo * 1200).toFixed(1) + '%' + (rehabIO ? ' IO' : '') + ')', v:fmt(rehabPI) + '/mo', c:'bad', key:false}] : []),
+    ...(dpLoanAmt > 0 ? [{l:'2nd-Position Loan (' + fmt(dpLoanAmt) + ' @ ' + (dpFinRateMo * 1200).toFixed(1) + '%' + (dpFinIO ? ' IO' : '') + ' — covers ' + (dpFinPct * 100).toFixed(0) + '% of down pmt)', v:fmt(dpLoanAmt), c:'', key:false}] : []),
+    ...(dpLoanPayment > 0 ? [{l:'2nd-Position ' + (dpFinIO ? 'Interest' : 'P&I'), v:fmt(dpLoanPayment) + '/mo', c:'bad', key:false}] : []),
     {l: taxMode === 'assessed' ? 'Property Tax (assessed value)' : 'Tax Estimate (CLR-modeled)',
                                                       v:fmt(monthlyTax) + '/mo · ' + fmt(monthlyTax * 12) + '/yr', c:'',                      key:false},
     {l:'Assessed Value Used' + (taxMode === 'assessed' ? '' : ' (est.)'),
@@ -1346,7 +1411,7 @@ function calc() {
       <div class="result-row"><span class="result-label">Stabilized Operating Expenses</span><span class="result-value">${fmt(stabTotalExp)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Stabilized Operating Expense %</span><span class="result-value">${fmtPct(stabOperatingExpPct)} of EGI</span></div>
       <div class="result-row"><span class="result-label">Stabilized NOI</span><span class="result-value">${fmt(stabNOI)}/mo · ${fmt(stabNOI_yr)}/yr</span></div>
-      ${(pi + pmiMonthly + rehabPI) > 0 ? `<div class="result-row"><span class="result-label">Stabilized Mortgage P&amp;I${pmiMonthly > 0 ? ' + PMI/MIP' : ''}${rehabPI > 0 ? ' + Rehab' : ''}</span><span class="result-value bad">-${fmt(pi + pmiMonthly + rehabPI)}/mo</span></div>` : ''}
+      ${(pi + pmiMonthly + rehabPI + dpLoanPayment) > 0 ? `<div class="result-row"><span class="result-label">Stabilized Mortgage P&amp;I${pmiMonthly > 0 ? ' + PMI/MIP' : ''}${rehabPI > 0 ? ' + Rehab' : ''}${dpLoanPayment > 0 ? ' + 2nd-Pos.' : ''}</span><span class="result-value bad">-${fmt(pi + pmiMonthly + rehabPI + dpLoanPayment)}/mo</span></div>` : ''}
       <div class="result-row key"><span class="result-label">Stabilized Cash Flow</span><span class="result-value ${cls(stabCF, 150 * units, 0)}">${(stabCF < 0 ? '-' : '') + fmt(stabCF)}/mo</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cap Rate</span><span class="result-value ${cls(stabCapRate, 8, 6.5)}">${fmtPct(stabCapRate)}</span></div>
       <div class="result-row"><span class="result-label">Stabilized Cash-on-Cash</span><span class="result-value ${cls(stabCoC, 7, 4)}">${fmtPct(stabCoC)}</span></div>
@@ -1482,7 +1547,7 @@ function calc() {
   let refiLtv = 0, refiRateMo = 0, refiAmortYr = 30, refiYear = 0;
   let noiRefi_yr = 0, noiRefi_yr_forValuation = 0, estArvRefi = 0, arvRefi = 0, valuationTaxRefi_yr = 0;
   let refiValuation = null;
-  let newLoan = 0, acqBalAtRefi = 0, payoff = 0, cashOut = 0, cashLeftIn = 0, newPI = 0, postCF = 0, postCoC = null, grew = false;
+  let newLoan = 0, acqBalAtRefi = 0, payoff = 0, cashOut = 0, cashLeftIn = 0, newPI = 0, postCF = 0, postCoC = null, grew = false, dpBalAtRefi = 0;
   if (refiActive) {
     refiLtv     = (parseFloat((document.getElementById('refiltv')  || {}).value) || 75) / 100;
     refiRateMo  = (parseFloat((document.getElementById('refirate') || {}).value) || 7.5) / 100 / 12;
@@ -1495,35 +1560,59 @@ function calc() {
     valuationTaxRefi_yr = refiValuation.expenses.propertyTaxAnnual;
     estArvRefi  = refiValuation.incomeArv;
     arvRefi     = refiValuation.finalArv;
-    newLoan     = arvRefi * refiLtv;
     acqBalAtRefi= acqBalance(loan, mr, amortMonths, refiYear * 12, isBridge);  // bridge: no paydown, full balance; else paid down to the refi year
-    payoff      = acqBalAtRefi + rehabLoan;        // refi clears the (paid-down) acquisition AND rehab loans
+    // Down-payment 2nd-position balance at the refi year (IO carries in full; amortizing pays down)
+    dpBalAtRefi = dpLoanAmt <= 0 ? 0
+                : (dpFinIO ? dpLoanAmt : remainingBalance(dpLoanAmt, dpFinRateMo, dpFinTermYr * 12, refiYear * 12));
+    if (refiTarget === 'second' && dpLoanAmt > 0) {
+      // Refinance ONLY the 2nd position out — keep the existing first mortgage and its payment.
+      // The new money is a fresh loan sitting behind the untouched first, up to the refi LTV.
+      newLoan   = Math.max(0, arvRefi * refiLtv - acqBalAtRefi);
+      payoff    = dpBalAtRefi + rehabLoan;           // retire just the 2nd-position (and any rehab) loan
+      newPI     = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
+      postCF    = noiRefi_yr / 12 - pi - newPI;        // original first-mortgage P&I keeps running alongside the new 2nd
+    } else {
+      // Default: a new first mortgage pays off the acquisition loan + rehab + any 2nd-position loan.
+      newLoan   = arvRefi * refiLtv;
+      payoff    = acqBalAtRefi + rehabLoan + dpBalAtRefi;
+      newPI     = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
+      postCF    = noiRefi_yr / 12 - newPI;             // acquisition, rehab & 2nd loans are all gone post-refi
+    }
     cashOut     = newLoan - payoff;
     cashLeftIn  = cashToClose - cashOut;
-    newPI       = pmtFromLoan(newLoan, refiRateMo, refiAmortYr * 12);
-    postCF      = noiRefi_yr / 12 - newPI;          // rehab loan is gone post-refi; NOI at the refi year
     postCoC     = cashLeftIn > 0 ? (postCF * 12 / cashLeftIn * 100) : null;
     grew        = isValueAdd && refiYear > stabYears;
   }
+  const refiKeepsFirst = refiActive && refiTarget === 'second' && dpLoanAmt > 0;   // 2nd-only refi: original first mortgage survives
   const refiWithinHold = refiActive && refiYear < holdYears;   // the refi actually lands before you exit — otherwise treat the hold as un-refinanced
 
   /* ── 5-year pro forma & total return (#1) — switches to the refinanced loan (and drops the
      rehab loan, which the refi pays off) starting the year after refiYear; books the cash-out
      as a real cash event instead of leaving it stranded in a separate box. ── */
   if (pp > 0) {
-    let rows5 = '', cumCF = 0, lastBalance = loan;
+    let rows5 = '', cumCF = 0, lastBalance = loan + dpLoanAmt;
     const cfByYear = [];
+    // 2nd-position loan balance at year t (IO carries in full; amortizing pays down)
+    const dpBalAt = (t) => dpLoanAmt <= 0 ? 0
+      : (dpFinIO ? dpLoanAmt : remainingBalance(dpLoanAmt, dpFinRateMo, dpFinTermYr * 12, t * 12));
     for (let t = 1; t <= holdYears; t++) {
       const rent_t        = projRent(t);
       const noi_t_yr       = noiAtYear(t);
-      const cfUsesNewLoan  = refiWithinHold && t > refiYear;    // full year of the new payment only after the refi year
-      const balUsesNewLoan = refiWithinHold && t >= refiYear;   // balance snapshot reflects the refi once it closes (incl. its own year)
-      const cf_t_yr    = cfUsesNewLoan ? (noi_t_yr - newPI * 12) : (noi_t_yr - pi * 12 - pmiMonthly * 12 - rehabPI * 12);
+      const postRefiCF   = refiWithinHold && t > refiYear;    // full year of the new financing only after the refi year
+      const postRefiBal  = refiWithinHold && t >= refiYear;   // balance snapshot reflects the refi once it closes (incl. its own year)
+      // Pre-refi / buy-and-hold years carry the original 1st + PMI + rehab + 2nd-position loan.
+      // Post-refi: 'both' leaves only the new 1st; '2nd-only' keeps the original 1st alongside the new 2nd.
+      const cf_t_yr = postRefiCF
+        ? (refiKeepsFirst ? (noi_t_yr - pi * 12 - newPI * 12) : (noi_t_yr - newPI * 12))
+        : (noi_t_yr - pi * 12 - pmiMonthly * 12 - rehabPI * 12 - dpLoanPayment * 12);
       cumCF += cf_t_yr;
       cfByYear.push(cf_t_yr);
-      lastBalance = balUsesNewLoan
-        ? remainingBalance(newLoan, refiRateMo, refiAmortYr * 12, (t - refiYear) * 12)
-        : acqBalance(loan, mr, amortMonths, t * 12, isBridge);
+      if (postRefiBal) {
+        const newBal = remainingBalance(newLoan, refiRateMo, refiAmortYr * 12, (t - refiYear) * 12);
+        lastBalance = refiKeepsFirst ? (acqBalance(loan, mr, amortMonths, t * 12, isBridge) + newBal) : newBal;
+      } else {
+        lastBalance = acqBalance(loan, mr, amortMonths, t * 12, isBridge) + dpBalAt(t);
+      }
       rows5 += `<tr><td>${t}${refiWithinHold && t === refiYear ? ' 🔁' : ''}</td><td>${fmt(rent_t)}</td><td>${fmt(noi_t_yr)}</td><td class="${cf_t_yr < 0 ? 'bad' : 'good'}">${(cf_t_yr < 0 ? '-' : '') + fmt(cf_t_yr)}</td><td>${fmt(lastBalance)}</td></tr>`;
     }
     // Exit: value-add uses income approach (final NOI ÷ market cap) to capture created value; else appreciation.
@@ -1535,7 +1624,12 @@ function calc() {
     const salePrice        = exitValuation ? exitValuation.finalArv : pp * Math.pow(1 + apprG, holdYears);
     const sellingCosts     = salePrice * sellCostPct;
     const netProceeds      = salePrice - sellingCosts - lastBalance;   // lastBalance already reflects whichever loan is active at exit
-    const principalPaydown = (refiWithinHold ? newLoan : loan) - lastBalance;   // paydown on the loan you're actually carrying at exit
+    // Paydown on the debt you actually carry to exit: buy-and-hold starts at 1st + 2nd loan;
+    // a full refi starts at the new 1st; a 2nd-only refi starts at the surviving 1st (at refi) + new 2nd.
+    const startDebtForPaydown = refiWithinHold
+      ? (refiKeepsFirst ? (acqBalAtRefi + newLoan) : newLoan)
+      : (loan + dpLoanAmt);
+    const principalPaydown = startDebtForPaydown - lastBalance;
     const apprGain         = salePrice - pp;
     const totalProfit      = cumCF + (refiWithinHold ? cashOut : 0) + netProceeds - cashToClose;
     const equityMult       = cashToClose > 0 ? (cumCF + (refiWithinHold ? cashOut : 0) + netProceeds) / cashToClose : 0;
@@ -1600,11 +1694,13 @@ function calc() {
       <div class="result-row"><span class="result-label">Valuation Tax Basis</span><span class="result-value">${fmt(valuationTaxRefi_yr)}/yr · ${refiValuation.taxLabel}</span></div>
       <div class="result-row"><span class="result-label">Automatic ${valueTerm} (${automaticValueLabel})</span><span class="result-value">${fmt(estArvRefi)}</span></div>
       <div class="result-row key"><span class="result-label">${valueTerm} Used (Yr ${refiYear})</span><span class="result-value">${fmt(arvRefi)}</span></div>
-      <div class="result-row"><span class="result-label">New Loan (${(refiLtv * 100).toFixed(0)}% of ${valueTerm})</span><span class="result-value">${fmt(newLoan)}</span></div>
-      <div class="result-row"><span class="result-label">Loans Paid Off${rehabLoan > 0 ? ' (acquisition + rehab)' : ''}${refiYear > 0 ? ', bal. @ yr ' + refiYear : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
+      ${refiKeepsFirst ? `<div class="result-row"><span class="result-label">🔒 Existing 1st Mortgage Kept (P&amp;I ${fmt(pi)}/mo, bal. ${fmt(acqBalAtRefi)})</span><span class="result-value">unchanged</span></div>` : ''}
+      <div class="result-row"><span class="result-label">${refiKeepsFirst ? 'New 2nd Loan (fills to ' + (refiLtv * 100).toFixed(0) + '% LTV behind the 1st)' : 'New Loan (' + (refiLtv * 100).toFixed(0) + '% of ' + valueTerm + ')'}</span><span class="result-value">${fmt(newLoan)}</span></div>
+      <div class="result-row"><span class="result-label">${refiKeepsFirst ? '2nd-Position Loan Paid Off' + (rehabLoan > 0 ? ' + rehab' : '') : 'Loans Paid Off' + (rehabLoan > 0 ? ' (acquisition + rehab' + (dpBalAtRefi > 0 ? ' + 2nd' : '') + ')' : (dpBalAtRefi > 0 ? ' (acquisition + 2nd)' : ''))}${refiYear > 0 ? ', bal. @ yr ' + refiYear : ''}</span><span class="result-value">${fmt(payoff)}</span></div>
       <div class="result-row"><span class="result-label">Cash-Out (new loan − payoff)</span><span class="result-value ${cashOut < 0 ? 'bad' : 'good'}">${(cashOut < 0 ? '-' : '') + fmt(cashOut)}</span></div>
       <div class="result-row key"><span class="result-label">Cash Left in Deal</span><span class="result-value ${cashLeftIn <= 0 ? 'good' : 'warn'}">${cashLeftIn <= 0 ? '$0 — all capital recovered' : fmt(cashLeftIn)}</span></div>
-      <div class="result-row"><span class="result-label">New P&amp;I (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
+      <div class="result-row"><span class="result-label">${refiKeepsFirst ? 'New 2nd P&amp;I' : 'New P&amp;I'} (${refiAmortYr}-yr)</span><span class="result-value">${fmt(newPI)}/mo</span></div>
+      ${refiKeepsFirst ? `<div class="result-row"><span class="result-label">Total Post-Refi Debt Service (1st + new 2nd)</span><span class="result-value">${fmt(pi + newPI)}/mo</span></div>` : ''}
       <div class="result-row"><span class="result-label">Post-Refi Cash Flow (Yr ${refiYear})</span><span class="result-value ${postCF < 0 ? 'bad' : 'good'}">${(postCF < 0 ? '-' : '') + fmt(postCF)}/mo</span></div>
       <div class="result-row key"><span class="result-label">Post-Refi Cash-on-Cash</span><span class="result-value ${postCoC == null ? 'good' : cls(postCoC, 7, 4)}">${postCoC == null ? '∞ — infinite (no capital left in)' : fmtPct(postCoC)}</span></div>
       <div class="note">Refinance modeled in year ${refiYear}: ${valueTerm} defaults to that year's stabilized NOI divided by the cap rate, unless the override above is entered. Property taxes follow the automatic source in the Property Taxes section. ${valuationTaxMethod === 'reassessed' ? 'With the post-sale reassessment estimate, purchase price can affect value only through the tax line.' : 'Changing down payment, interest rate, or rehab financing does not change value.'}${grew ? ' It reflects rent growth by year ' + refiYear + ' — matching the projection.' : ''}${isBridge ? ` The interest-only bridge balance (${fmt(acqBalAtRefi)}) carries in full to this point — no principal was paid down.` : ` The acquisition loan is paid down to ${fmt(acqBalAtRefi)}.`} Cash left in ≤ $0 = effectively infinite return.</div>
