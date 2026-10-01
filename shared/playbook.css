@@ -207,3 +207,8 @@ a{color:var(--link);}
   .data-table{font-size:11px;display:block;overflow-x:auto;}
   .card-value{font-size:20px;}
 }
+
+/* Hide number-input spinner arrows so values change only via keyboard */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+input[type="number"]{-moz-appearance:textfield;appearance:textfield;}

@@ -30,6 +30,19 @@
     });
   });
 
+  /* 0b — Block scroll-wheel changes on number inputs.
+   *      When a focused number field is under the mouse, the wheel would
+   *      step its value and rerun calc(). Blurring it lets the page scroll
+   *      normally and leaves the value untouched. Delegated on document so
+   *      inputs added later (rent roll rows, injected sections) are covered.
+   *      Arrow keys still work for keyboard stepping. */
+  document.addEventListener('wheel', function (e) {
+    var el = e.target;
+    if (el && el.matches && el.matches('input[type="number"]') && el === document.activeElement) {
+      el.blur();
+    }
+  }, { passive: true });
+
   /* 1 — Back nav */
   const nav = document.createElement('div');
   nav.className = 'back-nav';
